@@ -1,5 +1,7 @@
 import os
 import shutil
+import subprocess
+
 import click
 import yaml
 from docker import from_env as docker_from_env
@@ -27,7 +29,7 @@ def package(lambda_name, config):
     if lambda_config['type'] == 'zip':
         package_zip(lambda_name)
     elif lambda_config['type'] == 'docker':
-        package_docker(lambda_name)
+        package_docker(lambda_name, config_data)  # Pass the config data object here
     else:
         click.echo("Unsupported packaging type")
 
@@ -72,23 +74,56 @@ def package_layer(layer_name):
     click.echo(f"Lambda layer {layer_name} packaged as {output_file}.")
 
 
-
-def package_docker(lambda_name):
-    """Package the lambda as a docker container"""
+def package_docker(lambda_name, config_data):
+    """Package the lambda as a docker container, including any layers from the config"""
     lambda_path = os.path.join(os.getcwd(), lambda_name)
     dockerfile_path = os.path.join(lambda_path, 'Dockerfile')
+    layers_config = config_data.get('layers', {})
 
+    # Ensure Dockerfile exists
     if not os.path.exists(dockerfile_path):
         raise FileNotFoundError(f"No Dockerfile found for {lambda_name}")
+
+    # Read the architecture from the config (default to linux/amd64 if not specified)
+    lambda_config = config_data['lambdas'].get(lambda_name, {})
+    target_arch = lambda_config.get('arch', 'linux/amd64')
 
     docker_client = docker_from_env()
     image_tag = f'{lambda_name}:latest'
 
-    click.echo(f"Building Docker image for {lambda_name}...")
+    click.echo(f"Building Docker image for {lambda_name} with architecture {target_arch}...")
 
+    # Step 1: Prepare layer files and dependencies for the Docker image
+    layer_dirs_to_remove = []  # Keep track of the layer directories to remove later
+
+    for layer_name, layer_config in layers_config.items():
+        layer_path = os.path.join(os.getcwd(), layer_name)
+        requirements_path = os.path.join(layer_path, 'requirements.txt')
+
+        # Ensure layer directory exists
+        if not os.path.exists(layer_path):
+            raise FileNotFoundError(f"Layer directory {layer_path} not found")
+
+        # Step 1a: Copy the layer code into the Docker image directory (e.g., into /var/task/{layer_name})
+        layer_dest = os.path.join(lambda_path, layer_name)
+        shutil.copytree(layer_path, layer_dest)
+        layer_dirs_to_remove.append(layer_dest)  # Track the directory to remove later
+        click.echo(f"Copied {layer_name} to the Docker image")
+
+        # Step 1b: Install dependencies for the layer if requirements.txt is present
+        if os.path.exists(requirements_path):
+            click.echo(f"Installing dependencies for layer {layer_name}...")
+            subprocess.check_call([os.sys.executable, "-m", "pip", "install", "-r", requirements_path, "-t", layer_dest])
+
+    # Step 2: Build the Docker image with the specified architecture
     try:
-        # Build the Docker image and stream logs
-        build_output = docker_client.api.build(path=lambda_path, tag=image_tag, rm=True, decode=True)
+        build_output = docker_client.api.build(
+            path=lambda_path,
+            tag=image_tag,
+            platform=target_arch,
+            rm=True,
+            decode=True
+        )
 
         for log in build_output:
             if 'stream' in log:
@@ -100,10 +135,13 @@ def package_docker(lambda_name):
         click.echo(f"Error during Docker build: {str(e)}")
         raise
 
+    # Step 3: Clean up - Remove the layer directories from the Lambda's directory
+    for layer_dir in layer_dirs_to_remove:
+        click.echo(f"Removing layer directory: {layer_dir}")
+        shutil.rmtree(layer_dir)
+
     click.echo(f"Lambda {lambda_name} packaged as Docker container {image_tag}.")
 
-
-import subprocess
 
 def package_zip(lambda_name):
     """Package the lambda as a zip file including dependencies"""
