@@ -37,6 +37,7 @@ def package(lambda_name, config):
 def package_layer(layer_name):
     """Package shared dependencies as a lambda layer"""
     common_path = os.path.join(os.getcwd(), 'common')  # Path to common directory
+    requirements_path = os.path.join(common_path, 'requirements.txt')  # Path to common requirements.txt
     layer_output_dir = os.path.join(os.getcwd(), 'dist')  # Path to dist directory
     output_file = os.path.join(layer_output_dir, f'{layer_name}.zip')
 
@@ -49,15 +50,20 @@ def package_layer(layer_name):
         shutil.rmtree(layer_temp_dir)  # Clean any previous temp files
     os.makedirs(python_lib_dir, exist_ok=True)
 
-    # Copy the entire 'common' directory to the site-packages
+    # Step 1: Install dependencies into the site-packages directory if requirements.txt exists
+    if os.path.exists(requirements_path):
+        click.echo(f"Installing dependencies for {layer_name} from {requirements_path}...")
+        subprocess.check_call([os.sys.executable, "-m", "pip", "install", "-r", requirements_path, "-t", python_lib_dir])
+
+    # Step 2: Copy the entire 'common' directory to the site-packages
     common_dest = os.path.join(python_lib_dir, 'common')
     shutil.copytree(common_path, common_dest)
 
-    # Ensure the 'dist' directory exists
+    # Step 3: Ensure the 'dist' directory exists
     if not os.path.exists(layer_output_dir):
         os.makedirs(layer_output_dir)
 
-    # Zip the temp_layer directory to create the layer package
+    # Step 4: Zip the temp_layer directory to create the layer package
     shutil.make_archive(output_file.replace('.zip', ''), 'zip', layer_temp_dir)
 
     # Clean up temporary directory
@@ -97,17 +103,45 @@ def package_docker(lambda_name):
     click.echo(f"Lambda {lambda_name} packaged as Docker container {image_tag}.")
 
 
+import subprocess
+
 def package_zip(lambda_name):
-    """Package the lambda as a zip file"""
+    """Package the lambda as a zip file including dependencies"""
     lambda_path = os.path.join(os.getcwd(), lambda_name)
+    requirements_path = os.path.join(lambda_path, 'requirements.txt')
+    build_dir = os.path.join(lambda_path, 'build')
     output_file = os.path.join(os.getcwd(), 'dist', f'{lambda_name}.zip')
 
     # Ensure the 'dist' directory exists
     if not os.path.exists(os.path.join(os.getcwd(), 'dist')):
         os.makedirs(os.path.join(os.getcwd(), 'dist'))
 
-    # Zip the Lambda code
-    shutil.make_archive(output_file.replace('.zip', ''), 'zip', lambda_path)
+    # Ensure the build directory is clean
+    if os.path.exists(build_dir):
+        shutil.rmtree(build_dir)
+    os.makedirs(build_dir)
+
+    # Step 1: Install dependencies into the build directory if requirements.txt exists
+    if os.path.exists(requirements_path):
+        click.echo(f"Installing dependencies for {lambda_name} from {requirements_path}...")
+        subprocess.check_call([os.sys.executable, "-m", "pip", "install", "-r", requirements_path, "-t", build_dir])
+
+    # Step 2: Copy lambda source files (excluding requirements.txt) to the build directory
+    for item in os.listdir(lambda_path):
+        if item != 'build' and item != 'requirements.txt':
+            s = os.path.join(lambda_path, item)
+            d = os.path.join(build_dir, item)
+            if os.path.isdir(s):
+                shutil.copytree(s, d)
+            else:
+                shutil.copy2(s, d)
+
+    # Step 3: Create a ZIP file from the build directory
+    shutil.make_archive(output_file.replace('.zip', ''), 'zip', build_dir)
+
+    # Step 4: Clean up the build directory
+    shutil.rmtree(build_dir)
+
     click.echo(f"Lambda {lambda_name} packaged as {output_file}.")
 
 
