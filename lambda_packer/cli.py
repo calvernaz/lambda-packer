@@ -238,9 +238,10 @@ def package_zip(lambda_name, config_handler):
     shutil.rmtree(build_dir)
 
     # Include the layers referenced in the config
-    for layer in config_handler.get_lambda_layers(lambda_name):
-        click.echo(f"Packaging layer: {layer}")
-        package_layer_internal(layer)
+    for layer_name in config_handler.get_lambda_layers(lambda_name):
+        click.echo(f"Packaging layer_name: {layer_name}")
+        runtime = config_handler.get_lambda_runtime(lambda_name)
+        package_layer_internal(layer_name, runtime)
 
     click.echo(f"Lambda {lambda_name} packaged as {output_file}.")
 
@@ -260,7 +261,7 @@ def clean():
         click.echo(f"Directory {dist_path} does not exist.")
 
 
-def package_layer_internal(layer_name):
+def package_layer_internal(layer_name, runtime="3.8"):
     """Package shared dependencies as a lambda layer (internal function)"""
     common_path = os.path.join(os.getcwd(), layer_name)  # Path to layer directory
     requirements_path = os.path.join(
@@ -270,10 +271,9 @@ def package_layer_internal(layer_name):
     output_file = os.path.join(layer_output_dir, f"{layer_name}.zip")
 
     # AWS Lambda expects the layer to be structured inside 'python/lib/python3.x/site-packages/'
+    python_runtime = f'python{runtime}'
     layer_temp_dir = os.path.join(os.getcwd(), "temp_layer")
-    python_lib_dir = os.path.join(
-        layer_temp_dir, "python", "lib", "python3.8", "site-packages"
-    )
+    python_lib_dir = os.path.join(layer_temp_dir, f'python/lib/{python_runtime}/site-packages')
 
     # Ensure temp directory and structure exist
     if os.path.exists(layer_temp_dir):

@@ -41,8 +41,19 @@ class Config:
                     f"Layers for lambda '{lambda_name}' should be a list."
                 )
 
+                # Validate runtime if present
+            runtime = lambda_config.get('runtime', '3.8')  # Default to 3.8 if not provided
+            self.validate_runtime(runtime)
+
         if self.errors:
             raise ValueError(f"Config validation failed with errors: {self.errors}")
+
+    def validate_runtime(self, runtime):
+        """Validate that the runtime is between 3.8 and 3.12"""
+        valid_runtimes = ['3.8', '3.9', '3.10', '3.11', '3.12']
+        if runtime not in valid_runtimes:
+            self.errors.append(f"Invalid runtime: {runtime}. Supported runtimes are: {', '.join(valid_runtimes)}")
+
 
     def get_lambdas(self):
         """Return the lambda configurations"""
@@ -55,3 +66,8 @@ class Config:
     def get_lambda_layers(self, lambda_name):
         """Return the layers associated with a specific lambda"""
         return self.get_lambda_config(lambda_name).get("layers", [])
+
+    def get_lambda_runtime(self, lambda_name):
+        """Return the runtime for a specific lambda, defaulting to '3.8' if not provided"""
+        lambda_config = self.get_lambda_config(lambda_name)
+        return lambda_config.get('runtime', '3.8')
