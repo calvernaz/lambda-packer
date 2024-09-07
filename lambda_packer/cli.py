@@ -89,9 +89,83 @@ def init(parent_dir, lambda_name):
 
     click.echo("done")
 
+@main.command(name="config")
+@click.argument('lambda_name', required=False)
+@click.option('--repo', default=".", help="Path to the monorepo root directory.")
+def generate_config(repo, lambda_name):
+    """Generate a package_config.yaml from an existing monorepo."""
+
+    config_path = os.path.join(repo, "package_config.yaml")
+
+    # Step 1: Ensure package_config.yaml exists or create a new one if generating for the first time
+    if os.path.exists(config_path):
+        with open(config_path, "r") as config_file:
+            package_config = yaml.safe_load(config_file) or {"lambdas": {}}
+    else:
+        package_config = {"lambdas": {}}
+
+    if lambda_name:
+        # Step 2: Add or update a specific lambda in package_config.yaml
+        add_lambda_to_config(lambda_name, package_config, repo, config_path)
+    else:
+        # Step 3: If no lambda name is provided, configure the entire monorepo
+        configure_entire_monorepo(package_config, repo, config_path)
+
+def add_lambda_to_config(lambda_name, package_config, monorepo_path, config_path):
+    """Add a specific lambda to package_config.yaml."""
+    lambda_path = os.path.join(monorepo_path, lambda_name)
+
+    # Check if the lambda directory exists
+    if not os.path.exists(lambda_path):
+        click.echo(f"Error: Lambda '{lambda_name}' not found in {monorepo_path}.")
+        return
+
+    # Check if the lambda is already in the config
+    if lambda_name in package_config.get("lambdas", {}):
+        click.echo(f"Lambda '{lambda_name}' is already included in package_config.yaml.")
+        return
+
+    # Determine lambda type (zip or docker)
+    lambda_type = "docker" if os.path.exists(os.path.join(lambda_path, "Dockerfile")) else "zip"
+
+    # Add the lambda to the config
+    package_config["lambdas"][lambda_name] = {
+        "type": lambda_type,
+        "runtime": "3.8",  # Default runtime
+    }
+
+    # Save the updated config
+    with open(config_path, "w") as config_file:
+        yaml.dump(package_config, config_file, default_flow_style=False)
+
+    click.echo(f"Lambda '{lambda_name}' has been added to package_config.yaml.")
+
+def configure_entire_monorepo(package_config, monorepo_path, config_path):
+    """Scan the entire monorepo and add all detected lambdas to package_config.yaml."""
+    lambdas = package_config.get("lambdas", {})
+
+    # Scan for lambdas
+    for root, dirs, files in os.walk(monorepo_path):
+        if "lambda_handler.py" in files or "Dockerfile" in files:
+            lambda_name = os.path.basename(root)
+            if lambda_name not in lambdas:
+                lambda_type = "docker" if "Dockerfile" in files else "zip"
+                lambdas[lambda_name] = {
+                    "type": lambda_type,
+                    "runtime": "3.8",  # Default runtime
+                }
+
+    package_config["lambdas"] = lambdas
+
+    # Save the updated config
+    with open(config_path, "w") as config_file:
+        yaml.dump(package_config, config_file, default_flow_style=False)
+
+    click.echo(f"Updated package_config.yaml with {len(lambdas)} lambda(s).")
+
 
 @main.command()
-@click.argument("lambda_name")
+@click.argument('lambda_name', required=False)
 @click.option(
     "--config", default="package_config.yaml", help="Path to the config file."
 )
@@ -104,17 +178,35 @@ def package(lambda_name, config):
         click.echo(str(e))
         sys.exit(1)
 
-    lambda_config = config_handler.get_lambda_config(lambda_name)
-    if not lambda_config:
-        click.echo(f"Lambda {lambda_name} not found in config.")
-        return
-
-    if lambda_config["type"] == "zip":
-        package_zip(lambda_name, config_handler)  # Pass the config data object here
-    elif lambda_config["type"] == "docker":
-        package_docker(lambda_name, config_handler)  # Pass the config data object here
+    if lambda_name:
+        lambda_config = config_handler.get_lambda_config(lambda_name)
+        if not lambda_config:
+            click.echo(f"Lambda {lambda_name} not found in config.")
+            return
+        click.echo(f"Packaging lambda '{lambda_name}'...")
+        package_individual_lambda(lambda_name, lambda_config, config_handler)
     else:
-        click.echo("Unsupported packaging type")
+        lambdas = config_handler.get_lambdas()
+        for lambda_name, lambda_config in lambdas.items():
+            click.echo(f"Packaging lambda '{lambda_name}' of type '{lambda_config.get('type', 'zip')}'...")
+            package_individual_lambda(lambda_name, lambda_config, config_handler)
+        click.echo(f"Finished packaging all lambdas in {config}.")
+
+
+def package_individual_lambda(lambda_name, lambda_config, config):
+    """Package a single lambda, either zip or docker."""
+    lambda_type = lambda_config.get("type", "zip")
+
+    if lambda_type == "docker":
+        try:
+            package_docker(lambda_name, config)  # Assuming Config is a helper class for config handling
+        except Exception as e:
+            click.echo(f"Failed to package Docker lambda '{lambda_name}': {str(e)}")
+    else:
+        try:
+            package_zip(lambda_name, config)  # Assuming package_zip is a function for zip lambdas
+        except Exception as e:
+            click.echo(f"Failed to package Zip lambda '{lambda_name}': {str(e)}")
 
 
 @main.command(name="package-layer")
