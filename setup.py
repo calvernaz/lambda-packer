@@ -1,17 +1,11 @@
 from setuptools import setup, find_packages
 
-def get_version():
-    version_file = os.path.join('lambda_packer', '__init__.py')
-    with open(version_file, 'r') as f:
-        exec(f.read())
-    return locals()['__version__']
-
 with open("README.md", "r") as fh:
     long_description = fh.read()
 
 setup(
     name='lambda_packer',  # Must be unique across PyPI
-    version=get_version(),
+    version='0.1.0',
     packages=find_packages(),
     install_requires=[
         'Click',
