@@ -4,6 +4,7 @@ import subprocess
 import sys
 
 import click
+import yaml
 from docker import from_env as docker_from_env
 
 from lambda_packer.config import Config
@@ -261,6 +262,73 @@ def clean():
         click.echo(f"Directory {dist_path} does not exist.")
 
 
+@main.command()
+@click.argument("lambda_name")
+@click.option(
+    "--runtime",
+    default="3.8",
+    help="Python runtime version for the lambda (default: 3.8)",
+)
+@click.option(
+    "--type", default="zip", help="Packaging type for the lambda (zip or docker)"
+)
+def add_lambda(lambda_name, runtime, type):
+    """Add a new lambda to the existing monorepo and update package_config.yaml."""
+
+    # Set up the basic paths
+    base_dir = os.getcwd()
+    lambda_dir = os.path.join(base_dir, lambda_name)
+    package_config_path = os.path.join(base_dir, "package_config.yaml")
+
+    # Check if the Lambda already exists
+    if os.path.exists(lambda_dir):
+        raise FileExistsError(f"Lambda '{lambda_name}' already exists.")
+
+    # Create the lambda directory and necessary files
+    os.makedirs(lambda_dir)
+
+    # Create a basic lambda_handler.py
+    lambda_handler_path = os.path.join(lambda_dir, "lambda_handler.py")
+    lambda_handler_content = f"""def lambda_handler(event, context):
+    return {{
+        'statusCode': 200,
+        'body': 'Hello from {lambda_name}!'
+    }}
+"""
+    with open(lambda_handler_path, "w") as f:
+        f.write(lambda_handler_content)
+
+    # Create a basic requirements.txt
+    requirements_path = os.path.join(lambda_dir, "requirements.txt")
+    with open(requirements_path, "w") as f:
+        f.write("# Add your lambda dependencies here\n")
+
+    # Update the package_config.yaml file
+    if not os.path.exists(package_config_path):
+        raise FileNotFoundError(f"package_config.yaml not found at {base_dir}")
+
+    with open(package_config_path, "r") as f:
+        config_data = yaml.safe_load(f)
+
+    # Add the new Lambda to the package_config.yaml
+    if "lambdas" not in config_data:
+        config_data["lambdas"] = {}
+
+    new_lambda_config = {"type": type, "runtime": runtime}
+
+    # Only add the layers key if there are layers defined
+    if type == "zip":  # Assume zip type might need layers
+        new_lambda_config["layers"] = []  # Start with empty layers
+
+    config_data["lambdas"][lambda_name] = new_lambda_config
+
+    # Write the updated config back to package_config.yaml
+    with open(package_config_path, "w") as f:
+        yaml.dump(config_data, f, default_flow_style=False)
+
+    click.echo(f"Lambda '{lambda_name}' added with runtime {runtime} and type {type}.")
+
+
 def package_layer_internal(layer_name, runtime="3.8"):
     """Package shared dependencies as a lambda layer (internal function)"""
     common_path = os.path.join(os.getcwd(), layer_name)  # Path to layer directory
@@ -271,9 +339,11 @@ def package_layer_internal(layer_name, runtime="3.8"):
     output_file = os.path.join(layer_output_dir, f"{layer_name}.zip")
 
     # AWS Lambda expects the layer to be structured inside 'python/lib/python3.x/site-packages/'
-    python_runtime = f'python{runtime}'
+    python_runtime = f"python{runtime}"
     layer_temp_dir = os.path.join(os.getcwd(), "temp_layer")
-    python_lib_dir = os.path.join(layer_temp_dir, f'python/lib/{python_runtime}/site-packages')
+    python_lib_dir = os.path.join(
+        layer_temp_dir, f"python/lib/{python_runtime}/site-packages"
+    )
 
     # Ensure temp directory and structure exist
     if os.path.exists(layer_temp_dir):
