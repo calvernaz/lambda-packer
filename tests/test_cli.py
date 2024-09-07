@@ -3,6 +3,7 @@ import pytest
 import yaml
 from click.testing import CliRunner
 from lambda_packer.cli import add_lambda, init, package, package_layer
+from unittest.mock import patch, MagicMock
 
 
 @pytest.fixture
@@ -92,9 +93,6 @@ def test_package_zip_command(setup_test_directory):
         assert config_data["lambdas"]["lambda_zip"]["runtime"] == "3.8"
         assert config_data["lambdas"]["lambda_zip"]["type"] == "zip"
     assert result.exit_code == 0
-
-
-from unittest.mock import patch, MagicMock
 
 
 @patch("lambda_packer.cli.docker_from_env")

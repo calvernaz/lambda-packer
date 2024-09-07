@@ -25,6 +25,7 @@ class Config:
         lambdas = self.config_data.get("lambdas")
         if not lambdas:
             self.errors.append("Missing or empty 'lambdas' section in config.")
+            raise ValueError(f"Config validation failed with errors: {self.errors}")  # Ensure the error is raised
 
         # Validate each lambda config
         for lambda_name, lambda_config in lambdas.items():
@@ -37,18 +38,16 @@ class Config:
             # Validate layers as a list (if present)
             lambda_layers = lambda_config.get("layers", [])
             if not isinstance(lambda_layers, list):
-                self.errors.append(
-                    f"Layers for lambda '{lambda_name}' should be a list."
-                )
+                self.errors.append(f"Layers for lambda '{lambda_name}' should be a list.")
 
-                # Validate runtime if present
-            runtime = lambda_config.get(
-                "runtime", "3.8"
-            )  # Default to 3.8 if not provided
+            # Validate runtime if present
+            runtime = lambda_config.get("runtime", "3.8")  # Default to 3.8 if not provided
             self.validate_runtime(runtime)
 
         if self.errors:
             raise ValueError(f"Config validation failed with errors: {self.errors}")
+
+
 
     def validate_runtime(self, runtime):
         """Validate that the runtime is between 3.8 and 3.12"""
