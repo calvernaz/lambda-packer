@@ -162,7 +162,48 @@ lambda-packer package my_lambda
 lambda-packer package-layer common
 ```
 
-6. **Deploy** the zip file or Docker image to AWS Lambda.
+### 6. Adding a New Lambda to an Existing Monorepo
+
+You can add a new Lambda to an existing monorepo using the `add-lambda` command. You can also specify layers to be added to the new Lambda.
+
+```bash
+lambda-packer add-lambda <lambda_name> --runtime <runtime_version> --type <zip|docker> --layers <layer1> --layers <layer2>
+```
+
+Example:
+
+```bash
+lambda-packer add-lambda my_new_lambda --runtime 3.9 --type docker --layers common --layers shared
+```
+
+This will create a new Lambda directory and update the `package_config.yaml` like so:
+
+```yaml
+lambdas:
+my_new_lambda:
+runtime: '3.9'
+type: docker
+layers:
+- common
+- shared
+```
+
+If no layers are specified, the `layers` key will not be added.
+
+Example without layers:
+
+```bash
+lambda-packer add-lambda my_new_lambda --runtime 3.9 --type docker
+```
+
+This will update the `package_config.yaml` like this:
+
+```yaml
+lambdas:
+my_new_lambda:
+runtime: '3.9'
+type: docker
+```
 
 ---
 
@@ -176,10 +217,10 @@ Contributions are welcome! If you'd like to contribute to this project, please o
 pip install -e .[dev]
 ```
 
-To format the codebase:
+### Running Tests
 
 ```bash
-lambda-packer format
+pytest tests/
 ```
 
 ---

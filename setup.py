@@ -6,7 +6,7 @@ setup(
     packages=find_packages(),  # Will find the package directory
     install_requires=["Click", "PyYAML", "docker"],
     extras_require={
-        "dev": ["black"],  # Add black as a development dependency
+        "dev": ["pytest", "black"],  # Add black as a development dependency
     },
     entry_points="""
         [console_scripts]

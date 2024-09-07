@@ -17,6 +17,21 @@ def main():
 
 
 @main.command()
+def clean():
+    """Clean the dist directory by deleting all files inside it."""
+    dist_path = os.path.join(os.getcwd(), "dist")
+
+    if os.path.exists(dist_path) and os.path.isdir(dist_path):
+        click.echo(f"Cleaning {dist_path}...")
+        # Remove everything inside the dist directory
+        shutil.rmtree(dist_path)
+        os.makedirs(dist_path)  # Recreate the dist directory after cleaning
+        click.echo(f"{dist_path} has been cleaned.")
+    else:
+        click.echo(f"Directory {dist_path} does not exist.")
+
+
+@main.command()
 @click.argument("parent_dir")
 @click.option(
     "--lambda-name",
@@ -248,21 +263,6 @@ def package_zip(lambda_name, config_handler):
 
 
 @main.command()
-def clean():
-    """Clean the dist directory by deleting all files inside it."""
-    dist_path = os.path.join(os.getcwd(), "dist")
-
-    if os.path.exists(dist_path) and os.path.isdir(dist_path):
-        click.echo(f"Cleaning {dist_path}...")
-        # Remove everything inside the dist directory
-        shutil.rmtree(dist_path)
-        os.makedirs(dist_path)  # Recreate the dist directory after cleaning
-        click.echo(f"{dist_path} has been cleaned.")
-    else:
-        click.echo(f"Directory {dist_path} does not exist.")
-
-
-@main.command()
 @click.argument("lambda_name")
 @click.option(
     "--runtime",
@@ -272,7 +272,8 @@ def clean():
 @click.option(
     "--type", default="zip", help="Packaging type for the lambda (zip or docker)"
 )
-def add_lambda(lambda_name, runtime, type):
+@click.option("--layers", multiple=True, help="Layers to add to the lambda")
+def add_lambda(lambda_name, runtime, type, layers):
     """Add a new lambda to the existing monorepo and update package_config.yaml."""
 
     # Set up the basic paths
@@ -316,9 +317,9 @@ def add_lambda(lambda_name, runtime, type):
 
     new_lambda_config = {"type": type, "runtime": runtime}
 
-    # Only add the layers key if there are layers defined
-    if type == "zip":  # Assume zip type might need layers
-        new_lambda_config["layers"] = []  # Start with empty layers
+    # Add layers if specified
+    if layers:
+        new_lambda_config["layers"] = list(layers)
 
     config_data["lambdas"][lambda_name] = new_lambda_config
 
@@ -326,7 +327,9 @@ def add_lambda(lambda_name, runtime, type):
     with open(package_config_path, "w") as f:
         yaml.dump(config_data, f, default_flow_style=False)
 
-    click.echo(f"Lambda '{lambda_name}' added with runtime {runtime} and type {type}.")
+    click.echo(
+        f"Lambda '{lambda_name}' added with runtime {runtime}, type {type}, and layers {layers}."
+    )
 
 
 def package_layer_internal(layer_name, runtime="3.8"):
