@@ -1,0 +1,5 @@
+- existing projects, need a way to just add or read the monorepo configuration
+- need to be able to add a new lambda to the monorepo
+- build a dockerfile from the lambda configuration without need to provide one
+- lambda-packer package should iterate over all lambdas and package
+- package_docker when fails leaves layers in the lambda folder

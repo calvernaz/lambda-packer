@@ -1,4 +1,5 @@
 import yaml
+import click
 
 
 class Config:
@@ -7,13 +8,16 @@ class Config:
         self.config_data = self.load_config()
         self.errors = []
 
+
     def load_config(self):
         """Load the YAML configuration from the file"""
         try:
             with open(self.config_path, "r") as config_file:
                 return yaml.safe_load(config_file)
         except FileNotFoundError:
-            raise FileNotFoundError(f"Config file not found: {self.config_path}")
+            click.echo(f"Error: The config file '{self.config_path}' was not found. "
+                       "Please ensure that it exists in the current directory or specify the correct path.")
+            raise SystemExit(1)  # Gracefully exit with error code 1
         except yaml.YAMLError as e:
             raise ValueError(f"Error parsing YAML config: {str(e)}")
 
@@ -40,8 +44,7 @@ class Config:
             if not isinstance(lambda_layers, list):
                 self.errors.append(f"Layers for lambda '{lambda_name}' should be a list.")
 
-            # Validate runtime if present
-            runtime = lambda_config.get("runtime", "3.8")  # Default to 3.8 if not provided
+            runtime = lambda_config.get("runtime", "3.8")
             self.validate_runtime(runtime)
 
         if self.errors:

@@ -1,9 +1,11 @@
 import os
+from unittest.mock import patch, MagicMock
+
 import pytest
 import yaml
 from click.testing import CliRunner
-from lambda_packer.cli import add_lambda, init, package, package_layer
-from unittest.mock import patch, MagicMock
+
+from lambda_packer.cli import add_lambda, init, package, main
 
 
 @pytest.fixture
@@ -144,3 +146,49 @@ def test_package_docker_command(mock_docker, setup_test_directory):
         assert config_data["lambdas"]["lambda_docker"]["runtime"] == "3.9"
         assert config_data["lambdas"]["lambda_docker"]["type"] == "docker"
     assert result.exit_code == 0
+
+
+def test_package_docker_no_dockerfile(setup_test_directory):
+    """Test packaging a lambda as a Docker container when the Dockerfile is missing."""
+    runner = CliRunner()
+
+    # Set up a valid project without a Dockerfile
+    result = runner.invoke(main, ['init', 'test_project', '--lambda-name', 'lambda_example'])
+    assert result.exit_code == 0
+    os.chdir('test_project')
+
+    # Add a lambda of type docker without a Dockerfile
+    result = runner.invoke(main, ['lambda', 'lambda_docker', '--runtime', '3.9', '--type', 'docker'])
+
+    # Print the output if it fails
+    if result.exit_code != 0:
+        print(f"Command output:\n{result.output}")
+
+    assert result.exit_code == 0  # Ensure the command ran successfully
+
+    # Verify that the lambda_docker was added to the config
+    with open("package_config.yaml", "r") as config_file:
+        config_data = yaml.safe_load(config_file)
+        assert "lambda_docker" in config_data["lambdas"]
+
+    # Run the package command
+    result = runner.invoke(main, ['package', 'lambda_docker'])
+
+    # Check that the friendly error message is returned
+    assert "Error: No Dockerfile found for lambda_docker" in result.output
+    assert result.exit_code == 0
+
+def test_missing_package_config():
+    """Test that a friendly error message is shown when package_config.yaml is missing."""
+    runner = CliRunner()
+
+    # Ensure the test directory does not have package_config.yaml
+    if os.path.exists("package_config.yaml"):
+        os.remove("package_config.yaml")
+
+    # Run the lambda-packer package command, expecting it to fail with a friendly message
+    result = runner.invoke(main, ['package', 'lambda_example'])
+
+    # Check that the friendly error message is in the output
+    assert "Error: The config file 'package_config.yaml' was not found" in result.output
+    assert result.exit_code == 1

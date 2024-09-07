@@ -129,12 +129,18 @@ def package_docker(lambda_name, config_handler):
     lambda_config = config_handler.get_lambda_config(lambda_name)
     lambda_path = os.path.join(os.getcwd(), lambda_name)
     dockerfile_path = os.path.join(lambda_path, "Dockerfile")
+    requirements_path = os.path.join(lambda_path, "requirements.txt")
 
     # Ensure Dockerfile exists
     if not os.path.exists(dockerfile_path):
-        raise FileNotFoundError(f"No Dockerfile found for {lambda_name}")
+        click.echo(f"Error: No Dockerfile found for {lambda_name} in path {lambda_path}.")
+        return
 
-    # Read the architecture from the config (default to linux/amd64 if not specified)
+    # If the requirements.txt file does not exist, issue a warning
+    if not os.path.exists(requirements_path):
+        click.echo(f"Warning: No requirements.txt found for {lambda_name}. Skipping dependency installation.")
+
+
     target_arch = lambda_config.get("arch", "linux/amd64")
     image_tag = lambda_config.get("image", f"{lambda_name}:latest")
 
