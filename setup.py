@@ -1,15 +1,39 @@
 from setuptools import setup, find_packages
 
+def get_version():
+    version_file = os.path.join('lambda_packer', '__init__.py')
+    with open(version_file, 'r') as f:
+        exec(f.read())
+    return locals()['__version__']
+
+with open("README.md", "r") as fh:
+    long_description = fh.read()
+
 setup(
-    name="lambda_packer",
-    version="0.1",
-    packages=find_packages(),  # Will find the package directory
-    install_requires=["Click", "PyYAML", "docker"],
+    name='lambda_packer',  # Must be unique across PyPI
+    version=get_version(),
+    packages=find_packages(),
+    install_requires=[
+        'Click',
+        'PyYAML',
+        'docker',
+    ],
     extras_require={
-        "dev": ["pytest", "black"],  # Add black as a development dependency
+        "dev": ["pytest", "black", "twine", "bump2version"],
     },
-    entry_points="""
-        [console_scripts]
-        lambda-packer=lambda_packer.cli:main
-    """,
+    entry_points={
+        'console_scripts': [
+            'lambda-packer=lambda_packer.cli:main',
+        ],
+    },
+    description="A tool to package Python AWS Lambda functions with zips, Docker containers, and layers.",
+    long_description=long_description,
+    long_description_content_type="text/markdown",
+    url="https://github.com/calvernaz/lambda-packer",
+    classifiers=[
+        'Programming Language :: Python :: 3',
+        'License :: OSI Approved :: MIT License',
+        'Operating System :: OS Independent',
+    ],
+    python_requires='>=3.8',
 )

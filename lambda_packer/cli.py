@@ -262,7 +262,7 @@ def package_zip(lambda_name, config_handler):
     click.echo(f"Lambda {lambda_name} packaged as {output_file}.")
 
 
-@main.command()
+@main.command("lambda")
 @click.argument("lambda_name")
 @click.option(
     "--runtime",

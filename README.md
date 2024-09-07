@@ -1,12 +1,13 @@
 # lambda-packer
 
-**A streamlined tool for managing and packaging Python AWS Lambda functions, with flexible support for zips, Docker images, and Lambda layers.**
-
+**A streamlined tool for managing and packaging Python AWS Lambda functions**
 ---
 
 ## Overview
 
-`lambda-packer` is a command-line tool designed to simplify the process of packaging Python AWS Lambda functions. It provides an opinionated approach to manage Lambdas using a monorepo, allowing packaging as either zip files or Docker containers, with shared dependencies packaged as Lambda layers.
+`lambda-packer` is a command-line tool designed to simplify the process of packaging Python AWS Lambda functions. 
+It provides an opinionated approach to develop Lambdas using a monorepo, allowing packaging as either zip files or Docker containers, 
+with shared dependencies packaged as Lambda layers.
 ### Key Features
 
 - **Package Lambdas as zip files or Docker containers**
@@ -164,16 +165,16 @@ lambda-packer package-layer common
 
 ### 6. Adding a New Lambda to an Existing Monorepo
 
-You can add a new Lambda to an existing monorepo using the `add-lambda` command. You can also specify layers to be added to the new Lambda.
+You can add a new Lambda to an existing monorepo using the `lambda` command. You can also specify layers to be added to the new Lambda.
 
 ```bash
-lambda-packer add-lambda <lambda_name> --runtime <runtime_version> --type <zip|docker> --layers <layer1> --layers <layer2>
+lambda-packer lambda <lambda_name> --runtime <runtime_version> --type <zip|docker> --layers <layer1> --layers <layer2>
 ```
 
 Example:
 
 ```bash
-lambda-packer add-lambda my_new_lambda --runtime 3.9 --type docker --layers common --layers shared
+lambda-packer lambda my_new_lambda --runtime 3.9 --type docker --layers common --layers shared
 ```
 
 This will create a new Lambda directory and update the `package_config.yaml` like so:
@@ -193,7 +194,7 @@ If no layers are specified, the `layers` key will not be added.
 Example without layers:
 
 ```bash
-lambda-packer add-lambda my_new_lambda --runtime 3.9 --type docker
+lambda-packer lambda my_new_lambda --runtime 3.9 --type docker
 ```
 
 This will update the `package_config.yaml` like this:

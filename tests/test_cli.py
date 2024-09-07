@@ -32,7 +32,7 @@ def test_init_command(setup_test_directory):
 
 
 def test_add_lambda_command(setup_test_directory):
-    """Test the add-lambda command."""
+    """Test the lambda command."""
     runner = CliRunner()
     runner.invoke(init, ["test_project", "--lambda-name", "lambda_example"])
 
