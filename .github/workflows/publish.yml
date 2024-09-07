@@ -26,7 +26,7 @@ jobs:
 
       - name: Run tests
         run: |
-          pytest  # This runs your tests
+          pytest
         continue-on-error: false
 
       - name: Install build tools
