@@ -28,6 +28,11 @@ jobs:
           pytest
         continue-on-error: false
 
+      - name: Install build tools
+        if: success()  # This runs only if tests succeed
+        run: |
+          pip install setuptools wheel
+
       - name: Build the package
         if: success()
         run: |
