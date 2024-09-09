@@ -9,15 +9,8 @@ def create_valid_config(tmpdir):
     """Create a valid package_config.yaml file."""
     config_data = {
         "lambdas": {
-            "lambda_example": {
-                "type": "zip",
-                "runtime": "3.8",
-                "layers": ["common"]
-            },
-            "lambda_docker": {
-                "type": "docker",
-                "runtime": "3.9"
-            }
+            "lambda_example": {"type": "zip", "runtime": "3.8", "layers": ["common"]},
+            "lambda_docker": {"type": "docker", "runtime": "3.9"},
         }
     }
     config_path = os.path.join(tmpdir, "package_config.yaml")
@@ -31,9 +24,7 @@ def create_invalid_config(tmpdir):
     """Create an invalid package_config.yaml file missing required fields."""
     config_data = {
         "lambdas": {
-            "lambda_example": {
-                "layers": "common"  # Invalid: layers should be a list
-            }
+            "lambda_example": {"layers": "common"}  # Invalid: layers should be a list
         }
     }
     config_path = os.path.join(tmpdir, "package_config.yaml")
@@ -118,13 +109,7 @@ def test_missing_lambdas_section(tmpdir):
 
 def test_validate_with_missing_type(tmpdir):
     """Test config validation when 'type' is missing from a lambda."""
-    config_data = {
-        "lambdas": {
-            "lambda_example": {
-                "runtime": "3.8"
-            }
-        }
-    }
+    config_data = {"lambdas": {"lambda_example": {"runtime": "3.8"}}}
     config_path = os.path.join(tmpdir, "package_config.yaml")
     with open(config_path, "w") as config_file:
         yaml.dump(config_data, config_file)

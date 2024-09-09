@@ -8,15 +8,16 @@ class Config:
         self.config_data = self.load_config()
         self.errors = []
 
-
     def load_config(self):
         """Load the YAML configuration from the file"""
         try:
             with open(self.config_path, "r") as config_file:
                 return yaml.safe_load(config_file)
         except FileNotFoundError:
-            click.echo(f"Error: The config file '{self.config_path}' was not found. "
-                       "Please ensure that it exists in the current directory or specify the correct path.")
+            click.echo(
+                f"Error: The config file '{self.config_path}' was not found. "
+                "Please ensure that it exists in the current directory or specify the correct path."
+            )
             raise SystemExit(1)  # Gracefully exit with error code 1
         except yaml.YAMLError as e:
             raise ValueError(f"Error parsing YAML config: {str(e)}")
@@ -29,7 +30,9 @@ class Config:
         lambdas = self.config_data.get("lambdas")
         if not lambdas:
             self.errors.append("Missing or empty 'lambdas' section in config.")
-            raise ValueError(f"Config validation failed with errors: {self.errors}")  # Ensure the error is raised
+            raise ValueError(
+                f"Config validation failed with errors: {self.errors}"
+            )  # Ensure the error is raised
 
         # Validate each lambda config
         for lambda_name, lambda_config in lambdas.items():
@@ -42,15 +45,15 @@ class Config:
             # Validate layers as a list (if present)
             lambda_layers = lambda_config.get("layers", [])
             if not isinstance(lambda_layers, list):
-                self.errors.append(f"Layers for lambda '{lambda_name}' should be a list.")
+                self.errors.append(
+                    f"Layers for lambda '{lambda_name}' should be a list."
+                )
 
             runtime = lambda_config.get("runtime", "3.8")
             self.validate_runtime(runtime)
 
         if self.errors:
             raise ValueError(f"Config validation failed with errors: {self.errors}")
-
-
 
     def validate_runtime(self, runtime):
         """Validate that the runtime is between 3.8 and 3.12"""

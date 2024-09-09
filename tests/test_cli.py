@@ -243,36 +243,6 @@ def test_package_docker_command(mock_docker, setup_test_directory):
     assert result.exit_code == 0
 
 
-def test_package_docker_no_dockerfile(setup_test_directory):
-    """Test packaging a lambda as a Docker container when the Dockerfile is missing."""
-    runner = CliRunner()
-
-    # Set up a valid project without a Dockerfile
-    result = runner.invoke(main, ['init', 'test_project', '--lambda-name', 'lambda_example'])
-    assert result.exit_code == 0
-    os.chdir('test_project')
-
-    # Add a lambda of type docker without a Dockerfile
-    result = runner.invoke(main, ['lambda', 'lambda_docker', '--runtime', '3.9', '--type', 'docker'])
-
-    # Print the output if it fails
-    if result.exit_code != 0:
-        print(f"Command output:\n{result.output}")
-
-    assert result.exit_code == 0  # Ensure the command ran successfully
-
-    # Verify that the lambda_docker was added to the config
-    with open("package_config.yaml", "r") as config_file:
-        config_data = yaml.safe_load(config_file)
-        assert "lambda_docker" in config_data["lambdas"]
-
-    # Run the package command
-    result = runner.invoke(main, ['package', 'lambda_docker'])
-
-    # Check that the friendly error message is returned
-    assert "Error: No Dockerfile found for lambda_docker" in result.output
-    assert result.exit_code == 0
-
 def test_missing_package_config():
     """Test that a friendly error message is shown when package_config.yaml is missing."""
     runner = CliRunner()
@@ -361,3 +331,149 @@ def test_package_all_lambdas(setup_test_directory):
     # You can also check if the Docker image for lambda_b is created via the Docker client if needed.
 
     assert "Finished packaging all lambdas in package_config.yaml." in result.output
+
+def test_package_docker_generates_templated_dockerfile(setup_test_directory):
+    """Test that lambda-packer generates a Dockerfile using a template."""
+    runner = CliRunner()
+
+    # Simulate lambda_with_layer
+    lambda_with_layer_path = os.path.join(setup_test_directory, "lambda_with_layer")
+    if not os.path.exists(lambda_with_layer_path):
+        os.makedirs(lambda_with_layer_path)
+
+    # Simulate Lambda function code
+    with open(os.path.join(lambda_with_layer_path, "lambda_handler.py"), "w") as f:
+        f.write("def lambda_handler(event, context): return 'Hello from Lambda with Layer'")
+
+    # Create package_config.yaml with one lambda that has a layer
+    package_config = {
+        "lambdas": {
+            "lambda_with_layer": {
+                "type": "docker",
+                "runtime": "3.9",
+                "layers": ["common"]
+            }
+        }
+    }
+
+    with open("package_config.yaml", "w") as config_file:
+        yaml.dump(package_config, config_file)
+
+    # Run the package command for the lambda
+    result = runner.invoke(main, ['package', 'lambda_with_layer'], catch_exceptions=False)
+    print(f"Command output:\n{result.output}")
+    assert result.exit_code == 0, f"Command failed with exit code {result.exit_code}"
+
+    # Verify Dockerfile is created
+    dockerfile_path = os.path.join(lambda_with_layer_path, "Dockerfile")
+    assert os.path.exists(dockerfile_path), f"Dockerfile not found at {dockerfile_path}"
+
+    # Check the content of the Dockerfile
+    with open(dockerfile_path) as f:
+        dockerfile_content = f.read()
+    print(f"Dockerfile content:\n{dockerfile_content}")
+
+    # Verify the Dockerfile includes the expected layer COPY command
+    assert "COPY ./common" in dockerfile_content, "Layer copy command not found in Dockerfile"
+
+
+def test_package_docker_generates_dockerfile_with_custom_layers(setup_test_directory):
+    """Test that lambda-packer generates a Dockerfile with custom layers."""
+    runner = CliRunner()
+
+    # Simulate a Lambda with custom layer
+    lambda_with_layer_path = os.path.join(setup_test_directory, "lambda_with_custom_layer")
+    if not os.path.exists(lambda_with_layer_path):
+        os.makedirs(lambda_with_layer_path)
+    with open(os.path.join(lambda_with_layer_path, "lambda_handler.py"), "w") as f:
+        f.write("def lambda_handler(event, context): return 'Hello from Lambda with Custom Layer'")
+
+    # Create package_config.yaml with custom layer
+    package_config = {
+        "lambdas": {
+            "lambda_with_custom_layer": {
+                "type": "docker",
+                "runtime": "3.9",
+                "layers": ["layer_custom"]
+            }
+        }
+    }
+
+    with open("package_config.yaml", "w") as config_file:
+        yaml.dump(package_config, config_file)
+
+    # Run the package command
+    result = runner.invoke(main, ['package', 'lambda_with_custom_layer'])
+    assert os.path.exists(os.path.join(lambda_with_layer_path, "Dockerfile"))
+
+    # Verify the Dockerfile contains the correct layer logic
+    dockerfile_content = open(os.path.join(lambda_with_layer_path, "Dockerfile")).read()
+    assert "COPY ./layer_custom" in dockerfile_content
+    assert "RUN if [ -f '${LAMBDA_TASK_ROOT}/layer_custom/requirements.txt'" in dockerfile_content
+
+def test_package_docker_deletes_generated_dockerfile(setup_test_directory):
+    """Test that lambda-packer deletes the generated Dockerfile if --keep-dockerfile is not set."""
+    runner = CliRunner()
+
+    # Simulate a Lambda
+    lambda_path = os.path.join(setup_test_directory, "lambda_a")
+    if not os.path.exists(lambda_path):
+        os.makedirs(lambda_path)
+    with open(os.path.join(lambda_path, "lambda_handler.py"), "w") as f:
+        f.write("def lambda_handler(event, context): return 'Hello from Lambda'")
+
+    # Create package_config.yaml
+    package_config = {
+        "lambdas": {
+            "lambda_a": {
+                "type": "docker",
+                "runtime": "3.12"
+            }
+        }
+    }
+
+    with open("package_config.yaml", "w") as config_file:
+        yaml.dump(package_config, config_file)
+
+    # Run the package command without --keep-dockerfile
+    result = runner.invoke(main, ['package', 'lambda_a'])
+    assert result.exit_code == 0
+    assert not os.path.exists(os.path.join(lambda_path, "Dockerfile"))  # Dockerfile should be deleted
+
+    # Run the package command with --keep-dockerfile
+    result = runner.invoke(main, ['package', 'lambda_a', '--keep-dockerfile'])
+    assert result.exit_code == 0
+    assert os.path.exists(os.path.join(lambda_path, "Dockerfile"))  # Dockerfile should be kept
+
+def test_package_docker_does_not_delete_existing_dockerfile(setup_test_directory):
+    """Test that lambda-packer does not delete an existing Dockerfile provided by the user."""
+    runner = CliRunner()
+
+    # Simulate a Lambda with an existing Dockerfile
+    lambda_path = os.path.join(setup_test_directory, "lambda_a")
+    if not os.path.exists(lambda_path):
+        os.makedirs(lambda_path)
+    with open(os.path.join(lambda_path, "lambda_handler.py"), "w") as f:
+        f.write("def lambda_handler(event, context): return 'Hello from Lambda'")
+
+    # Create a user-provided Dockerfile
+    with open(os.path.join(lambda_path, "Dockerfile"), "w") as f:
+        f.write("FROM python:3.9\n")
+
+    # Create package_config.yaml
+    package_config = {
+        "lambdas": {
+            "lambda_a": {
+                "type": "docker",
+                "runtime": "3.12"
+            }
+        }
+    }
+
+    with open("package_config.yaml", "w") as config_file:
+        yaml.dump(package_config, config_file)
+
+    # Run the package command
+    result = runner.invoke(main, ['package', 'lambda_a'])
+    assert result.exit_code == 0
+    assert os.path.exists(os.path.join(lambda_path, "Dockerfile"))  # Dockerfile should not be deleted

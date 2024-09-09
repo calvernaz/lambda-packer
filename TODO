@@ -1,5 +1,5 @@
-- package_docker when fails leaves layers in the lambda folder
-
+- lambda-packer lambda is missing the architecture and image name
+i.e lambda-packer lambda lambda-apigw-authorizer --type docker --layers common
 
 VERY IMPORTANT:
 - build a dockerfile from the lambda configuration without need to provide one

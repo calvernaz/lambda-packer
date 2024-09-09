@@ -2,12 +2,37 @@ import os
 import shutil
 import subprocess
 import sys
+from string import Template
 
 import click
 import yaml
 from docker import from_env as docker_from_env
+from docker.errors import DockerException
 
 from lambda_packer.config import Config
+
+DOCKERFILE_TEMPLATE = Template(
+    """
+FROM public.ecr.aws/lambda/python:$runtime
+
+# Copy function code
+COPY . $${LAMBDA_TASK_ROOT}
+
+$layer_copy
+
+# Install dependencies for the Lambda function if requirements.txt is present
+RUN if [ -f "requirements.txt" ]; then \\
+        pip install --no-cache-dir -r requirements.txt -t $${LAMBDA_TASK_ROOT}; \\
+    else \\
+        echo "Warning: No requirements.txt found. Skipping dependency installation."; \\
+    fi
+
+$layer_dependencies
+
+# Specify the Lambda handler
+CMD ["lambda_handler.lambda_handler"]
+"""
+)
 
 
 @click.group()
@@ -89,9 +114,10 @@ def init(parent_dir, lambda_name):
 
     click.echo("done")
 
+
 @main.command(name="config")
-@click.argument('lambda_name', required=False)
-@click.option('--repo', default=".", help="Path to the monorepo root directory.")
+@click.argument("lambda_name", required=False)
+@click.option("--repo", default=".", help="Path to the monorepo root directory.")
 def generate_config(repo, lambda_name):
     """Generate a package_config.yaml from an existing monorepo."""
 
@@ -111,6 +137,7 @@ def generate_config(repo, lambda_name):
         # Step 3: If no lambda name is provided, configure the entire monorepo
         configure_entire_monorepo(package_config, repo, config_path)
 
+
 def add_lambda_to_config(lambda_name, package_config, monorepo_path, config_path):
     """Add a specific lambda to package_config.yaml."""
     lambda_path = os.path.join(monorepo_path, lambda_name)
@@ -122,11 +149,15 @@ def add_lambda_to_config(lambda_name, package_config, monorepo_path, config_path
 
     # Check if the lambda is already in the config
     if lambda_name in package_config.get("lambdas", {}):
-        click.echo(f"Lambda '{lambda_name}' is already included in package_config.yaml.")
+        click.echo(
+            f"Lambda '{lambda_name}' is already included in package_config.yaml."
+        )
         return
 
     # Determine lambda type (zip or docker)
-    lambda_type = "docker" if os.path.exists(os.path.join(lambda_path, "Dockerfile")) else "zip"
+    lambda_type = (
+        "docker" if os.path.exists(os.path.join(lambda_path, "Dockerfile")) else "zip"
+    )
 
     # Add the lambda to the config
     package_config["lambdas"][lambda_name] = {
@@ -139,6 +170,7 @@ def add_lambda_to_config(lambda_name, package_config, monorepo_path, config_path
         yaml.dump(package_config, config_file, default_flow_style=False)
 
     click.echo(f"Lambda '{lambda_name}' has been added to package_config.yaml.")
+
 
 def configure_entire_monorepo(package_config, monorepo_path, config_path):
     """Scan the entire monorepo and add all detected lambdas to package_config.yaml."""
@@ -165,11 +197,16 @@ def configure_entire_monorepo(package_config, monorepo_path, config_path):
 
 
 @main.command()
-@click.argument('lambda_name', required=False)
+@click.argument("lambda_name", required=False)
 @click.option(
     "--config", default="package_config.yaml", help="Path to the config file."
 )
-def package(lambda_name, config):
+@click.option(
+    "--keep-dockerfile",
+    is_flag=True,
+    help="Keep the generated Dockerfile after packaging.",
+)
+def package(lambda_name, config, keep_dockerfile):
     """Package the specified lambda"""
     config_handler = Config(config)
     try:
@@ -184,27 +221,33 @@ def package(lambda_name, config):
             click.echo(f"Lambda {lambda_name} not found in config.")
             return
         click.echo(f"Packaging lambda '{lambda_name}'...")
-        package_individual_lambda(lambda_name, lambda_config, config_handler)
+        package_individual_lambda(lambda_name, lambda_config, config_handler, keep_dockerfile)
     else:
         lambdas = config_handler.get_lambdas()
         for lambda_name, lambda_config in lambdas.items():
-            click.echo(f"Packaging lambda '{lambda_name}' of type '{lambda_config.get('type', 'zip')}'...")
-            package_individual_lambda(lambda_name, lambda_config, config_handler)
+            click.echo(
+                f"Packaging lambda '{lambda_name}' of type '{lambda_config.get('type', 'zip')}'..."
+            )
+            package_individual_lambda(lambda_name, lambda_config, config_handler, keep_dockerfile)
         click.echo(f"Finished packaging all lambdas in {config}.")
 
 
-def package_individual_lambda(lambda_name, lambda_config, config):
+def package_individual_lambda(lambda_name, lambda_config, config, keep_dockerfile):
     """Package a single lambda, either zip or docker."""
     lambda_type = lambda_config.get("type", "zip")
 
     if lambda_type == "docker":
         try:
-            package_docker(lambda_name, config)  # Assuming Config is a helper class for config handling
+            package_docker(
+                lambda_name, config, keep_dockerfile
+            )  # Assuming Config is a helper class for config handling
         except Exception as e:
             click.echo(f"Failed to package Docker lambda '{lambda_name}': {str(e)}")
     else:
         try:
-            package_zip(lambda_name, config)  # Assuming package_zip is a function for zip lambdas
+            package_zip(
+                lambda_name, config
+            )  # Assuming package_zip is a function for zip lambdas
         except Exception as e:
             click.echo(f"Failed to package Zip lambda '{lambda_name}': {str(e)}")
 
@@ -216,33 +259,61 @@ def package_layer(layer_name):
     package_layer_internal(layer_name)
 
 
-def package_docker(lambda_name, config_handler):
+def package_docker(lambda_name, config_handler, keep_dockerfile):
     """Package the lambda as a docker container, using image tag from config if provided"""
-    lambda_config = config_handler.get_lambda_config(lambda_name)
-    lambda_path = os.path.join(os.getcwd(), lambda_name)
-    dockerfile_path = os.path.join(lambda_path, "Dockerfile")
-    requirements_path = os.path.join(lambda_path, "requirements.txt")
-
-    # Ensure Dockerfile exists
-    if not os.path.exists(dockerfile_path):
-        click.echo(f"Error: No Dockerfile found for {lambda_name} in path {lambda_path}.")
+    if not check_docker_daemon():
         return
 
-    # If the requirements.txt file does not exist, issue a warning
-    if not os.path.exists(requirements_path):
-        click.echo(f"Warning: No requirements.txt found for {lambda_name}. Skipping dependency installation.")
+    lambda_config = config_handler.get_lambda_config(lambda_name)
+    lambda_path = os.path.join(os.getcwd(), lambda_name)
+    layers = config_handler.get_lambda_layers(lambda_name)
 
-
-    target_arch = lambda_config.get("arch", "linux/amd64")
+    dockerfile_path = os.path.join(lambda_path, "Dockerfile")
     image_tag = lambda_config.get("image", f"{lambda_name}:latest")
+    lambda_runtime = lambda_config.get("runtime", "3.12")
+    target_arch = lambda_config.get("arch", "linux/amd64")
 
-    docker_client = docker_from_env()
+    dockerfile_generated = False
+
+    # Step 1: Generate a Dockerfile if none exists
+    if not os.path.exists(dockerfile_path):
+        click.echo(
+            f"No Dockerfile found for {lambda_name}. Generating default Dockerfile..."
+        )
+
+        dockerfile_generated = True
+        # Dynamically generate COPY and RUN statements for layers
+        layer_copy = ""
+        layer_dependencies = ""
+
+        for layer_name in layers:
+            # Add COPY for each layer
+            layer_copy += f"COPY ./{layer_name} ${{LAMBDA_TASK_ROOT}}/{layer_name}\n"
+            # Add RUN for each layer's requirements.txt if it exists
+            layer_dependencies += f"RUN if [ -f '${{LAMBDA_TASK_ROOT}}/{layer_name}/requirements.txt' ]; then \\\n"
+            layer_dependencies += f"    pip install --no-cache-dir -r ${{LAMBDA_TASK_ROOT}}/{layer_name}/requirements.txt -t ${{LAMBDA_TASK_ROOT}}; \\\n"
+            layer_dependencies += f"else \\\n"
+            layer_dependencies += f"    echo 'Warning: No requirements.txt found for {layer_name}. Skipping dependency installation.'; \\\n"
+            layer_dependencies += f"fi\n"
+
+        # Substitute values into the template
+        dockerfile_content = DOCKERFILE_TEMPLATE.substitute(
+            runtime=lambda_runtime,
+            layer_copy=layer_copy,
+            layer_dependencies=layer_dependencies,
+        )
+
+        # Write the Dockerfile
+        with open(dockerfile_path, "w") as f:
+            f.write(dockerfile_content)
 
     click.echo(
         f"Building Docker image for {lambda_name} with tag {image_tag} and architecture {target_arch}..."
     )
 
-    # Step 1: Prepare layer files and dependencies for the Docker image
+    docker_client = docker_from_env()
+
+    # Step 2: Prepare layer files and dependencies for the Docker image
     layer_dirs_to_remove = []  # Keep track of the layer directories to remove later
 
     for layer_name in config_handler.get_lambda_layers(lambda_name):
@@ -275,10 +346,15 @@ def package_docker(lambda_name, config_handler):
                 ]
             )
 
-    # Step 2: Build the Docker image with the specified architecture
+    # Step 3: Build the Docker image with the specified architecture
     try:
         build_output = docker_client.api.build(
-            path=lambda_path, tag=image_tag, platform=target_arch, rm=True, decode=True
+            path=lambda_path,
+            tag=image_tag,
+            platform=target_arch,
+            rm=True,
+            decode=True,
+            nocache=True,
         )
 
         for log in build_output:
@@ -295,6 +371,11 @@ def package_docker(lambda_name, config_handler):
         for layer_dir in layer_dirs_to_remove:
             click.echo(f"Removing layer directory: {layer_dir}")
             shutil.rmtree(layer_dir)
+
+        if dockerfile_generated and not keep_dockerfile:
+            if os.path.exists(dockerfile_path):
+                click.echo(f"Removing generated Dockerfile for {lambda_name}")
+                os.remove(dockerfile_path)
 
     click.echo(
         f"Lambda {lambda_name} packaged as Docker container with tag {image_tag}."
@@ -484,6 +565,19 @@ def package_layer_internal(layer_name, runtime="3.8"):
     shutil.rmtree(layer_temp_dir)
 
     click.echo(f"Lambda layer {layer_name} packaged as {output_file}.")
+
+
+def check_docker_daemon():
+    """Check if the Docker daemon is running."""
+    try:
+        docker_client = docker_from_env()
+        docker_client.ping()
+        return True
+    except DockerException:
+        click.echo(
+            "Error: Docker daemon is not running. Please start the Docker daemon and try again."
+        )
+        return False
 
 
 if __name__ == "__main__":
