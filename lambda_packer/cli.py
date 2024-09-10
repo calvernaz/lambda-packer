@@ -11,12 +11,11 @@ from docker.errors import DockerException
 
 from lambda_packer.config import Config
 
-DOCKERFILE_TEMPLATE = Template(
-    """
+DOCKERFILE_TEMPLATE = Template("""
 FROM public.ecr.aws/lambda/python:$runtime
 
 # Copy function code
-COPY . $${LAMBDA_TASK_ROOT}
+COPY $file_name $${LAMBDA_TASK_ROOT}/$file_name
 
 $layer_copy
 
@@ -30,9 +29,9 @@ RUN if [ -f "requirements.txt" ]; then \\
 $layer_dependencies
 
 # Specify the Lambda handler
-CMD ["lambda_handler.lambda_handler"]
-"""
-)
+CMD ["$file_base_name.$function_name"]
+""")
+
 
 
 @click.group()
@@ -272,7 +271,10 @@ def package_docker(lambda_name, config_handler, keep_dockerfile):
     image_tag = lambda_config.get("image", f"{lambda_name}:latest")
     lambda_runtime = lambda_config.get("runtime", "3.12")
     target_arch = lambda_config.get("arch", "linux/amd64")
+    file_name = lambda_config.get('file_name', 'lambda_handler.py')
+    function_name = lambda_config.get('function_name', 'lambda_handler')
 
+    file_base_name = os.path.splitext(file_name)[0]
     dockerfile_generated = False
 
     # Step 1: Generate a Dockerfile if none exists
@@ -299,13 +301,20 @@ def package_docker(lambda_name, config_handler, keep_dockerfile):
         # Substitute values into the template
         dockerfile_content = DOCKERFILE_TEMPLATE.substitute(
             runtime=lambda_runtime,
+            file_name=file_name,
+            file_base_name=file_base_name,
+            function_name=function_name,
             layer_copy=layer_copy,
-            layer_dependencies=layer_dependencies,
+            layer_dependencies=layer_dependencies
         )
 
-        # Write the Dockerfile
-        with open(dockerfile_path, "w") as f:
-            f.write(dockerfile_content)
+        try:
+            with open(dockerfile_path, "w") as f:
+                f.write(dockerfile_content)
+            click.echo(f"Dockerfile successfully generated at {dockerfile_path}")
+        except Exception as e:
+            click.echo(f"Failed to generate Dockerfile: {str(e)}")
+
 
     click.echo(
         f"Building Docker image for {lambda_name} with tag {image_tag} and architecture {target_arch}..."

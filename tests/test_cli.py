@@ -477,3 +477,50 @@ def test_package_docker_does_not_delete_existing_dockerfile(setup_test_directory
     result = runner.invoke(main, ['package', 'lambda_a'])
     assert result.exit_code == 0
     assert os.path.exists(os.path.join(lambda_path, "Dockerfile"))  # Dockerfile should not be deleted
+
+def test_package_docker_with_custom_filename_and_function_no_extension_in_cmd(setup_test_directory):
+    """Test that lambda-packer generates a Dockerfile with a custom filename and entry function, without .py extension in CMD."""
+    runner = CliRunner()
+
+    # Simulate a Lambda with a custom file and function name
+    lambda_path = os.path.join(setup_test_directory, "lambda_custom")
+    if not os.path.exists(lambda_path):
+        os.makedirs(lambda_path)
+
+    # Create custom handler
+    with open(os.path.join(lambda_path, "custom_handler.py"), "w") as f:
+        f.write("def my_custom_handler(event, context): return 'Hello from custom Lambda'")
+
+    # Create package_config.yaml
+    package_config = {
+        "lambdas": {
+            "lambda_custom": {
+                "type": "docker",
+                "runtime": "3.9",
+                "file_name": "custom_handler.py",
+                "function_name": "my_custom_handler",
+                "layers": []
+            }
+        }
+    }
+
+    with open("package_config.yaml", "w") as config_file:
+        yaml.dump(package_config, config_file)
+
+    # Run the package command with --keep-dockerfile flag
+    result = runner.invoke(main, ['package', 'lambda_custom', '--keep-dockerfile'], catch_exceptions=False)
+    print(f"Command output:\n{result.output}")  # Debug: Print command output
+    assert result.exit_code == 0, f"Command failed with exit code {result.exit_code}"
+
+    # Verify Dockerfile is created before the Docker build process
+    dockerfile_path = os.path.join(lambda_path, "Dockerfile")
+    assert os.path.exists(dockerfile_path), f"Dockerfile not found at {dockerfile_path}"
+
+    # Check the content of the Dockerfile
+    with open(dockerfile_path) as f:
+        dockerfile_content = f.read()
+    print(f"Dockerfile content:\n{dockerfile_content}")
+
+    # Verify the Dockerfile includes the correct file and function name, without .py in CMD
+    assert "COPY custom_handler.py" in dockerfile_content
+    assert 'CMD ["custom_handler.my_custom_handler"]' in dockerfile_content  # No .py in CMD
