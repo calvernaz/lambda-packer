@@ -40,19 +40,34 @@ def main():
     pass
 
 
+@click.option('--verbose', is_flag=True, help="Show detailed output.")
 @main.command()
-def clean():
-    """Clean the dist directory by deleting all files inside it."""
-    dist_path = os.path.join(os.getcwd(), "dist")
+def clean(verbose):
+    """Clean the 'dist' directory by deleting all files inside it."""
+    config_path = os.path.join(os.getcwd(), "package_config.yaml")
 
+    if not os.path.exists(config_path):
+        click.echo(f"Error: 'package_config.yaml' not found in the current directory. "
+                   f"Please make sure you're in the correct monorepo directory with a valid configuration.")
+        return
+
+    # Get the relative path of the dist directory
+    dist_path = os.path.join(os.path.dirname(config_path), "dist")
+
+    # Clean up the dist directory
     if os.path.exists(dist_path) and os.path.isdir(dist_path):
-        click.echo(f"Cleaning {dist_path}...")
-        # Remove everything inside the dist directory
+        if verbose:
+            click.echo(f"Cleaning {os.path.relpath(dist_path)}...")
+
         shutil.rmtree(dist_path)
-        os.makedirs(dist_path)  # Recreate the dist directory after cleaning
-        click.echo(f"{dist_path} has been cleaned.")
+        os.makedirs(dist_path)
+
+        if verbose:
+            click.echo(f"{os.path.relpath(dist_path)} has been cleaned.")
+        else:
+            click.echo(f"Cleaned the 'dist' directory.")
     else:
-        click.echo(f"Directory {dist_path} does not exist.")
+        click.echo(f"Directory {os.path.relpath(dist_path)} does not exist.")
 
 
 @main.command()

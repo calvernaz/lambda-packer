@@ -25,6 +25,24 @@ def setup_test_directory(tmpdir):
     os.chdir(tmpdir)
     return tmpdir
 
+def test_clean_command_missing_package_config(tmpdir):
+    """Test that clean command shows an error message when package_config.yaml is missing."""
+    runner = CliRunner()
+
+    # Change to a temporary directory (without package_config.yaml)
+    with tmpdir.as_cwd():
+        # Ensure no package_config.yaml exists
+        assert not os.path.exists("package_config.yaml")
+
+        # Run the clean command
+        result = runner.invoke(main, ['clean'])
+
+        # Verify the error message
+        assert result.exit_code == 0  # Exit code should be 0 for successful command execution
+        assert "Error: 'package_config.yaml' not found in the current directory." in result.output
+        assert "Please make sure you're in the correct monorepo directory" in result.output
+
+
 def test_add_lambda_to_config(setup_test_directory):
     """Test adding a specific lambda to an existing package_config.yaml."""
     runner = CliRunner()
