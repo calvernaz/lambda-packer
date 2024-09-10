@@ -4,7 +4,7 @@ with open("README.md", "r") as fh:
     long_description = fh.read()
 
 setup(
-    name="lambda_packer",  # Must be unique across PyPI
+    name="lambda_packer",
     version="0.1.6",
     packages=find_packages(),
     install_requires=[
