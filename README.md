@@ -5,8 +5,8 @@
 
 ## Overview
 
-`lambda-packer` is a command-line tool designed to simplify the process of packaging Python AWS Lambda functions. 
-It provides an opinionated approach to develop Lambdas using a monorepo, allowing packaging as either zip files or Docker containers, 
+`lambda-packer` is a command-line tool designed to simplify the process of packaging Python AWS Lambda functions.
+It provides an opinionated approach to develop Lambdas using a monorepo, allowing packaging as either zip files or Docker containers,
 with shared dependencies packaged as Lambda layers.
 ### Key Features
 
@@ -225,6 +225,21 @@ pytest tests/
 ```
 
 ---
+
+### Release
+
+Bump patch version:
+
+```bash
+bumpversion patch
+```
+
+Push tags:
+
+```
+git push origin main --tags
+```
+
 
 ## License
 
