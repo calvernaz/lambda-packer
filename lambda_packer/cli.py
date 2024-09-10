@@ -11,7 +11,8 @@ from docker.errors import DockerException
 
 from lambda_packer.config import Config
 
-DOCKERFILE_TEMPLATE = Template("""
+DOCKERFILE_TEMPLATE = Template(
+    """
 FROM public.ecr.aws/lambda/python:$runtime
 
 # Copy function code
@@ -30,8 +31,8 @@ $layer_dependencies
 
 # Specify the Lambda handler
 CMD ["$file_base_name.$function_name"]
-""")
-
+"""
+)
 
 
 @click.group()
@@ -40,15 +41,17 @@ def main():
     pass
 
 
-@click.option('--verbose', is_flag=True, help="Show detailed output.")
+@click.option("--verbose", is_flag=True, help="Show detailed output.")
 @main.command()
 def clean(verbose):
     """Clean the 'dist' directory by deleting all files inside it."""
     config_path = os.path.join(os.getcwd(), "package_config.yaml")
 
     if not os.path.exists(config_path):
-        click.echo(f"Error: 'package_config.yaml' not found in the current directory. "
-                   f"Please make sure you're in the correct monorepo directory with a valid configuration.")
+        click.echo(
+            f"Error: 'package_config.yaml' not found in the current directory. "
+            f"Please make sure you're in the correct monorepo directory with a valid configuration."
+        )
         return
 
     # Get the relative path of the dist directory
@@ -235,14 +238,18 @@ def package(lambda_name, config, keep_dockerfile):
             click.echo(f"Lambda {lambda_name} not found in config.")
             return
         click.echo(f"Packaging lambda '{lambda_name}'...")
-        package_individual_lambda(lambda_name, lambda_config, config_handler, keep_dockerfile)
+        package_individual_lambda(
+            lambda_name, lambda_config, config_handler, keep_dockerfile
+        )
     else:
         lambdas = config_handler.get_lambdas()
         for lambda_name, lambda_config in lambdas.items():
             click.echo(
                 f"Packaging lambda '{lambda_name}' of type '{lambda_config.get('type', 'zip')}'..."
             )
-            package_individual_lambda(lambda_name, lambda_config, config_handler, keep_dockerfile)
+            package_individual_lambda(
+                lambda_name, lambda_config, config_handler, keep_dockerfile
+            )
         click.echo(f"Finished packaging all lambdas in {config}.")
 
 
@@ -286,8 +293,8 @@ def package_docker(lambda_name, config_handler, keep_dockerfile):
     image_tag = lambda_config.get("image", f"{lambda_name}:latest")
     lambda_runtime = lambda_config.get("runtime", "3.12")
     target_arch = lambda_config.get("arch", "linux/amd64")
-    file_name = lambda_config.get('file_name', 'lambda_handler.py')
-    function_name = lambda_config.get('function_name', 'lambda_handler')
+    file_name = lambda_config.get("file_name", "lambda_handler.py")
+    function_name = lambda_config.get("function_name", "lambda_handler")
 
     file_base_name = os.path.splitext(file_name)[0]
     dockerfile_generated = False
@@ -320,7 +327,7 @@ def package_docker(lambda_name, config_handler, keep_dockerfile):
             file_base_name=file_base_name,
             function_name=function_name,
             layer_copy=layer_copy,
-            layer_dependencies=layer_dependencies
+            layer_dependencies=layer_dependencies,
         )
 
         try:
@@ -329,7 +336,6 @@ def package_docker(lambda_name, config_handler, keep_dockerfile):
             click.echo(f"Dockerfile successfully generated at {dockerfile_path}")
         except Exception as e:
             click.echo(f"Failed to generate Dockerfile: {str(e)}")
-
 
     click.echo(
         f"Building Docker image for {lambda_name} with tag {image_tag} and architecture {target_arch}..."
