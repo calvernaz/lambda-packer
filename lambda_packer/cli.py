@@ -6,17 +6,19 @@ from string import Template
 
 import click
 import yaml
-from docker import from_env as docker_from_env
-from docker.errors import DockerException
 
 from lambda_packer.config import Config
+from lambda_packer.docker_utils import check_docker_daemon, docker_client
+from lambda_packer.file_utils import file_exists
+
+PACKAGE_CONFIG_YAML = "package_config.yaml"
 
 DOCKERFILE_TEMPLATE = Template(
     """
 FROM public.ecr.aws/lambda/python:$runtime
 
 # Copy function code
-COPY $file_name $${LAMBDA_TASK_ROOT}/$file_name
+COPY . $${LAMBDA_TASK_ROOT}/
 
 $layer_copy
 
@@ -45,9 +47,9 @@ def main():
 @main.command()
 def clean(verbose):
     """Clean the 'dist' directory by deleting all files inside it."""
-    config_path = os.path.join(os.getcwd(), "package_config.yaml")
+    config_path = os.path.join(os.getcwd(), PACKAGE_CONFIG_YAML)
 
-    if not os.path.exists(config_path):
+    if not file_exists(config_path):
         click.echo(
             f"Error: 'package_config.yaml' not found in the current directory. "
             f"Please make sure you're in the correct monorepo directory with a valid configuration."
@@ -88,10 +90,10 @@ def init(parent_dir, lambda_name):
     common_dir = os.path.join(parent_path, "common")
     lambda_dir = os.path.join(parent_path, lambda_name)
     dist_dir = os.path.join(parent_path, "dist")
-    package_config_path = os.path.join(parent_path, "package_config.yaml")
+    package_config_path = os.path.join(parent_path, PACKAGE_CONFIG_YAML)
 
     # Check if parent directory already exists
-    if os.path.exists(parent_path):
+    if file_exists(parent_path):
         raise FileExistsError(
             f"Parent directory '{parent_dir}' already exists. Aborting initialization."
         )
@@ -138,7 +140,7 @@ def init(parent_dir, lambda_name):
 def generate_config(repo, lambda_name):
     """Generate a package_config.yaml from an existing monorepo."""
 
-    config_path = os.path.join(repo, "package_config.yaml")
+    config_path = os.path.join(repo, PACKAGE_CONFIG_YAML)
 
     # Step 1: Ensure package_config.yaml exists or create a new one if generating for the first time
     if os.path.exists(config_path):
@@ -167,7 +169,7 @@ def add_lambda_to_config(lambda_name, package_config, monorepo_path, config_path
     # Check if the lambda is already in the config
     if lambda_name in package_config.get("lambdas", {}):
         click.echo(
-            f"Lambda '{lambda_name}' is already included in package_config.yaml."
+            f"Lambda '{lambda_name}' is already included in {PACKAGE_CONFIG_YAML}."
         )
         return
 
@@ -186,7 +188,7 @@ def add_lambda_to_config(lambda_name, package_config, monorepo_path, config_path
     with open(config_path, "w") as config_file:
         yaml.dump(package_config, config_file, default_flow_style=False)
 
-    click.echo(f"Lambda '{lambda_name}' has been added to package_config.yaml.")
+    click.echo(f"Lambda '{lambda_name}' has been added to {PACKAGE_CONFIG_YAML}.")
 
 
 def configure_entire_monorepo(package_config, monorepo_path, config_path):
@@ -210,13 +212,13 @@ def configure_entire_monorepo(package_config, monorepo_path, config_path):
     with open(config_path, "w") as config_file:
         yaml.dump(package_config, config_file, default_flow_style=False)
 
-    click.echo(f"Updated package_config.yaml with {len(lambdas)} lambda(s).")
+    click.echo(f"Updated {PACKAGE_CONFIG_YAML} with {len(lambdas)} lambda(s).")
 
 
 @main.command()
 @click.argument("lambda_name", required=False)
 @click.option(
-    "--config", default="package_config.yaml", help="Path to the config file."
+    "--config", default=PACKAGE_CONFIG_YAML, help="Path to the config file."
 )
 @click.option(
     "--keep-dockerfile",
@@ -300,7 +302,7 @@ def package_docker(lambda_name, config_handler, keep_dockerfile):
     dockerfile_generated = False
 
     # Step 1: Generate a Dockerfile if none exists
-    if not os.path.exists(dockerfile_path):
+    if not file_exists(dockerfile_path):
         click.echo(
             f"No Dockerfile found for {lambda_name}. Generating default Dockerfile..."
         )
@@ -323,7 +325,6 @@ def package_docker(lambda_name, config_handler, keep_dockerfile):
         # Substitute values into the template
         dockerfile_content = DOCKERFILE_TEMPLATE.substitute(
             runtime=lambda_runtime,
-            file_name=file_name,
             file_base_name=file_base_name,
             function_name=function_name,
             layer_copy=layer_copy,
@@ -340,8 +341,6 @@ def package_docker(lambda_name, config_handler, keep_dockerfile):
     click.echo(
         f"Building Docker image for {lambda_name} with tag {image_tag} and architecture {target_arch}..."
     )
-
-    docker_client = docker_from_env()
 
     # Step 2: Prepare layer files and dependencies for the Docker image
     layer_dirs_to_remove = []  # Keep track of the layer directories to remove later
@@ -378,7 +377,7 @@ def package_docker(lambda_name, config_handler, keep_dockerfile):
 
     # Step 3: Build the Docker image with the specified architecture
     try:
-        build_output = docker_client.api.build(
+        build_output = docker_client().api.build(
             path=lambda_path,
             tag=image_tag,
             platform=target_arch,
@@ -488,7 +487,7 @@ def add_lambda(lambda_name, runtime, type, layers):
     # Set up the basic paths
     base_dir = os.getcwd()
     lambda_dir = os.path.join(base_dir, lambda_name)
-    package_config_path = os.path.join(base_dir, "package_config.yaml")
+    package_config_path = os.path.join(base_dir, PACKAGE_CONFIG_YAML)
 
     # Check if the Lambda already exists
     if os.path.exists(lambda_dir):
@@ -515,7 +514,7 @@ def add_lambda(lambda_name, runtime, type, layers):
 
     # Update the package_config.yaml file
     if not os.path.exists(package_config_path):
-        raise FileNotFoundError(f"package_config.yaml not found at {base_dir}")
+        raise FileNotFoundError(f"{PACKAGE_CONFIG_YAML} not found at {base_dir}")
 
     with open(package_config_path, "r") as f:
         config_data = yaml.safe_load(f)
@@ -595,19 +594,6 @@ def package_layer_internal(layer_name, runtime="3.8"):
     shutil.rmtree(layer_temp_dir)
 
     click.echo(f"Lambda layer {layer_name} packaged as {output_file}.")
-
-
-def check_docker_daemon():
-    """Check if the Docker daemon is running."""
-    try:
-        docker_client = docker_from_env()
-        docker_client.ping()
-        return True
-    except DockerException:
-        click.echo(
-            "Error: Docker daemon is not running. Please start the Docker daemon and try again."
-        )
-        return False
 
 
 if __name__ == "__main__":

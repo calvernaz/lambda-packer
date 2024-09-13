@@ -202,7 +202,7 @@ def test_package_zip_command(setup_test_directory):
     assert "Lambda lambda_a packaged" in result.output
 
 
-@patch("lambda_packer.cli.docker_from_env")
+@patch("lambda_packer.docker_utils.docker_from_env")
 def test_package_docker_command(mock_docker, setup_test_directory):
     """Test packaging a lambda as a docker container."""
     # Mock the Docker client and the build process
@@ -490,7 +490,8 @@ def test_package_docker_does_not_delete_existing_dockerfile(setup_test_directory
 def test_package_docker_with_custom_filename_and_function_no_extension_in_cmd(
     setup_test_directory,
 ):
-    """Test that lambda-packer generates a Dockerfile with a custom filename and entry function, without .py extension in CMD."""
+    """Test that lambda-packer generates a Dockerfile with a custom filename and entry function, without .py
+    extension in CMD."""
     runner = CliRunner()
 
     # Simulate a Lambda with a custom file and function name
@@ -537,7 +538,6 @@ def test_package_docker_with_custom_filename_and_function_no_extension_in_cmd(
     print(f"Dockerfile content:\n{dockerfile_content}")
 
     # Verify the Dockerfile includes the correct file and function name, without .py in CMD
-    assert "COPY custom_handler.py" in dockerfile_content
     assert (
         'CMD ["custom_handler.my_custom_handler"]' in dockerfile_content
     )  # No .py in CMD
