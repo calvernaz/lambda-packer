@@ -30,6 +30,10 @@ def file_exists(file_path):
     return os.path.exists(file_path)
 
 
+def abs_to_rel_path(abs_path):
+    return os.path.relpath(abs_path)
+
+
 def create_file(file_path, content):
     with open(file_path, "w") as file:
         file.write(content)

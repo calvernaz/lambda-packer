@@ -5,6 +5,7 @@ import os
 
 class Config:
     default_python_runtime = "3.12"
+    default_arch = "linux/amd64"
     package_config_yaml = "package_config.yaml"
 
     def __init__(self, config_path):
@@ -15,7 +16,9 @@ class Config:
     def load_config(self):
         """Load the YAML configuration from the file or create an empty one if it doesn't exist."""
         if not os.path.exists(self.config_path):
-            click.echo(f"Config file not found: {self.package_config_yaml}, creating...")
+            click.echo(
+                f"Config file not found: {self.package_config_yaml}, creating..."
+            )
             # Create an empty config file
             with open(self.config_path, "w") as config_file:
                 yaml.dump({}, config_file)
@@ -23,7 +26,7 @@ class Config:
 
         try:
             with open(self.config_path, "r") as config_file:
-                return yaml.safe_load(config_file)
+                return yaml.safe_load(config_file) or {}
         except yaml.YAMLError as e:
             raise ValueError(f"Error parsing YAML config: {str(e)}")
 
@@ -60,8 +63,16 @@ class Config:
         if self.errors:
             raise ValueError(f"Config validation failed with errors: {self.errors}")
 
-    def config_lambda(self, repo, lambda_name):
+    def config_lambda(
+        self,
+        lambda_name,
+        layers,
+        runtime=default_python_runtime,
+        lambda_type="zip",
+    ):
         """Add a specific lambda to package_config.yaml."""
+        # base path of the repo path
+        repo = os.path.dirname(self.config_path)
         lambda_path = os.path.join(repo, lambda_name)
 
         # Check if the lambda directory exists
@@ -80,24 +91,32 @@ class Config:
         lambda_type = (
             "docker"
             if os.path.exists(os.path.join(lambda_path, "Dockerfile"))
+            or lambda_type == "docker"
             else "zip"
         )
 
         # Add the lambda to the config
+        if "lambdas" not in self.config_data:
+            self.config_data["lambdas"] = {}
+
         self.config_data["lambdas"][lambda_name] = {
             "type": lambda_type,
-            "runtime": self.default_python_runtime,  # Default runtime
+            "runtime": runtime,
+            "layers": list(layers),
         }
 
         # Save the updated config
         self.save_config()
 
-        click.echo(f"Lambda '{lambda_name}' has been added to {self.package_config_yaml}.")
+        click.secho(
+            f"Lambda '{lambda_name}' has been added to {self.package_config_yaml}.",
+            fg="green",
+        )
 
-    def config_repo(self, repo):
+    def config_repo(self, layers):
         """Scan the entire monorepo and add all detected lambdas to package_config.yaml."""
         lambdas = self.config_data.get("lambdas", {})
-
+        repo = os.path.dirname(self.config_path)
         # Scan for lambdas
         for root, dirs, files in os.walk(repo):
             # TODO: detect the lambda file if more than one throw an error
@@ -108,14 +127,23 @@ class Config:
                     lambdas[lambda_name] = {
                         "type": lambda_type,
                         "runtime": self.default_python_runtime,
+                        "layers": list(layers),
                     }
+                else:
+                    # Update existing lambda with new layers
+                    existing_layers = set(lambdas[lambda_name].get("layers", []))
+                    updated_layers = existing_layers.union(set(layers))
+                    lambdas[lambda_name]["layers"] = list(updated_layers)
 
         self.config_data["lambdas"] = lambdas
 
         # Save the updated config
         self.save_config()
 
-        click.echo(f"Updated {self.package_config_yaml} with {len(lambdas)} lambda(s).")
+        click.secho(
+            f"Updated {self.package_config_yaml} with {len(lambdas)} lambda(s).",
+            fg="green",
+        )
 
     def save_config(self):
         """Save the current configuration to the YAML file"""
