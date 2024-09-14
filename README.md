@@ -27,8 +27,7 @@ pip install lambda-packer
 
 ## Usage
 
-
-[![asciicast](https://asciinema.org/a/7GlIkCfYmUKgxwaSTv17A7drL.svg)](https://asciinema.org/a/7GlIkCfYmUKgxwaSTv17A7drL?autoplay=1&speed=2)
+![Demo](./demo.gif)
 
 ### 1. Initialize a new repo
 
