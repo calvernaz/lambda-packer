@@ -63,7 +63,7 @@ The `package_config.yaml` file is where you define how to package your Lambdas. 
 lambdas:
   my_lambda:
     type: zip
-    runtime: "3.12"  # Specify the Python runtime version
+    runtime: "3.12"
     layers:
     - common
 ```
