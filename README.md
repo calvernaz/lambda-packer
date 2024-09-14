@@ -19,18 +19,8 @@ with shared dependencies packaged as Lambda layers.
 
 ## Installation
 
-To install the tool, clone this repository and run:
-
 ```bash
-git clone https://github.com/calvernaz/lambda-packer.git
-cd lambda-packer
-pip install -e .
-```
-
-For development:
-
-```bash
-pip install -e .[dev]
+pip install lambda-packer
 ```
 
 ---
@@ -213,6 +203,16 @@ type: docker
 Contributions are welcome! If you'd like to contribute to this project, please open a pull request or issue on GitHub.
 
 ### Development Setup
+
+Clone this repository and run:
+
+```bash
+git clone https://github.com/calvernaz/lambda-packer.git
+cd lambda-packer
+pip install -e .
+```
+
+For development:
 
 ```bash
 pip install -e .[dev]
