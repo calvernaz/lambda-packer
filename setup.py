@@ -14,7 +14,7 @@ setup(
         "docker",
     ],
     extras_require={
-        "dev": ["pytest", "black", "twine", "bump2version"],
+        "dev": ["pytest", "pytest-mock", "black", "twine", "bump2version"],
     },
     entry_points={
         "console_scripts": [

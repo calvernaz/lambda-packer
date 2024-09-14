@@ -26,7 +26,7 @@ class Config:
 
         try:
             with open(self.config_path, "r") as config_file:
-                return yaml.safe_load(config_file)
+                return yaml.safe_load(config_file) or {}
         except yaml.YAMLError as e:
             raise ValueError(f"Error parsing YAML config: {str(e)}")
 
@@ -65,13 +65,14 @@ class Config:
 
     def config_lambda(
         self,
-        repo,
         lambda_name,
         layers,
         runtime=default_python_runtime,
         lambda_type="zip",
     ):
         """Add a specific lambda to package_config.yaml."""
+        # base path of the repo path
+        repo = os.path.dirname(self.config_path)
         lambda_path = os.path.join(repo, lambda_name)
 
         # Check if the lambda directory exists
@@ -95,6 +96,9 @@ class Config:
         )
 
         # Add the lambda to the config
+        if "lambdas" not in self.config_data:
+            self.config_data["lambdas"] = {}
+
         self.config_data["lambdas"][lambda_name] = {
             "type": lambda_type,
             "runtime": runtime,
@@ -109,10 +113,10 @@ class Config:
             fg="green",
         )
 
-    def config_repo(self, repo, layers):
+    def config_repo(self, layers):
         """Scan the entire monorepo and add all detected lambdas to package_config.yaml."""
         lambdas = self.config_data.get("lambdas", {})
-
+        repo = os.path.dirname(self.config_path)
         # Scan for lambdas
         for root, dirs, files in os.walk(repo):
             # TODO: detect the lambda file if more than one throw an error
@@ -125,13 +129,21 @@ class Config:
                         "runtime": self.default_python_runtime,
                         "layers": list(layers),
                     }
+                else:
+                    # Update existing lambda with new layers
+                    existing_layers = set(lambdas[lambda_name].get("layers", []))
+                    updated_layers = existing_layers.union(set(layers))
+                    lambdas[lambda_name]["layers"] = list(updated_layers)
 
         self.config_data["lambdas"] = lambdas
 
         # Save the updated config
         self.save_config()
 
-        click.echo(f"Updated {self.package_config_yaml} with {len(lambdas)} lambda(s).")
+        click.secho(
+            f"Updated {self.package_config_yaml} with {len(lambdas)} lambda(s).",
+            fg="green",
+        )
 
     def save_config(self):
         """Save the current configuration to the YAML file"""

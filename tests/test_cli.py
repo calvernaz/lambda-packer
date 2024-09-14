@@ -50,7 +50,8 @@ def test_clean_command_missing_package_config(tmpdir):
             in result.output
         )
         assert (
-            "Please make sure you're in the correct monorepo directory" in result.output
+            "Please make sure you're in the correct directory with a valid configuration"
+            in result.output
         )
 
 

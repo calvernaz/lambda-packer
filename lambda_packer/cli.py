@@ -24,6 +24,7 @@ from lambda_packer.template_utils import (
 from lambda_packer.package_utils import (
     package_lambda,
     package_all_lambdas,
+    package_layer_internal,
 )
 
 
@@ -39,8 +40,8 @@ def clean(verbose):
     """Clean the 'dist' directory by deleting all files inside it."""
     if not file_exists(config_file_path()):
         click.echo(
-            f"Error: 'package_config.yaml' not found in the current directory. "
-            f"Please make sure you're in the correct monorepo directory with a valid configuration."
+            f"Error: '{Config.package_config_yaml}' not found in the current directory. "
+            f"Please make sure you're in the correct directory with a valid configuration."
         )
         return
 
@@ -111,8 +112,13 @@ def init(parent_dir, lambda_name):
 @main.command(name="config")
 @click.argument("lambda_name", required=False)
 @click.option("--repo", default=".", help="Path to the monorepo root directory.")
+@click.option(
+    "--runtime",
+    default=Config.default_python_runtime,
+    help="Python runtime version for the lambda",
+)
 @click.option("--layers", multiple=True, default=[], help="Layers to add to the lambda")
-def generate_config(repo, lambda_name, layers):
+def generate_config(repo, lambda_name, runtime, layers):
     """Generate a package_config.yaml from an existing monorepo."""
 
     config_path = config_file_path(repo)
@@ -120,10 +126,10 @@ def generate_config(repo, lambda_name, layers):
 
     if lambda_name:
         # Add or update a specific lambda in package_config.yaml
-        config_handler.config_lambda(repo, lambda_name, layers)
+        config_handler.config_lambda(lambda_name, layers, runtime)
     else:
         # Configure the entire monorepo
-        config_handler.config_repo(repo, layers)
+        config_handler.config_repo(layers)
 
 
 @main.command()
@@ -205,11 +211,7 @@ def add_lambda(ctx, lambda_name, runtime, type, layers):
     with open(requirements_path, "w") as f:
         f.write("# Add your lambda dependencies here\n")
 
-    config.config_lambda(base_dir, lambda_name, layers, runtime, type)
-
-    click.echo(
-        f"Lambda '{lambda_name}' added with runtime {runtime}, type {type}, and layers {layers}."
-    )
+    config.config_lambda(lambda_name, layers, runtime, type)
 
 
 if __name__ == "__main__":

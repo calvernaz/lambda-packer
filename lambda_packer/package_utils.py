@@ -7,7 +7,7 @@ import click
 
 from lambda_packer.config import Config
 from lambda_packer.docker_utils import check_docker_daemon, docker_client
-from lambda_packer.file_utils import file_exists
+from lambda_packer.file_utils import file_exists, abs_to_rel_path
 
 DOCKERFILE_TEMPLATE = Template(
     """
@@ -57,7 +57,7 @@ def package_layer_internal(layer_name, runtime=Config.default_python_runtime):
     # Step 1: Install dependencies into the site-packages directory if requirements.txt exists
     if os.path.exists(requirements_path):
         click.echo(
-            f"Installing dependencies for {layer_name} from {requirements_path}..."
+            f"Installing dependencies for {layer_name} from {abs_to_rel_path(requirements_path)}..."
         )
         subprocess.check_call(
             [
@@ -86,7 +86,10 @@ def package_layer_internal(layer_name, runtime=Config.default_python_runtime):
     # Clean up temporary directory
     shutil.rmtree(layer_temp_dir)
 
-    click.secho(f"Lambda layer {layer_name} packaged as {output_file}.", fg="green")
+    click.secho(
+        f"Lambda layer {layer_name} packaged as {abs_to_rel_path(output_file)}.",
+        fg="green",
+    )
 
 
 def package_lambda(lambda_name, config_handler, keep_dockerfile):
