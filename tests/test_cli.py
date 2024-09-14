@@ -152,7 +152,7 @@ def test_add_lambda_command(setup_test_directory):
         [
             "lambda_docker",
             "--runtime",
-            "3.9",
+            "3.12",
             "--type",
             "docker",
             "--layers",
@@ -168,9 +168,12 @@ def test_add_lambda_command(setup_test_directory):
     with open("package_config.yaml", "r") as config_file:
         config_data = yaml.safe_load(config_file)
         assert "lambda_docker" in config_data["lambdas"]
-        assert config_data["lambdas"]["lambda_docker"]["runtime"] == "3.9"
+        assert config_data["lambdas"]["lambda_docker"]["runtime"] == "3.12"
         assert config_data["lambdas"]["lambda_docker"]["type"] == "docker"
         assert config_data["lambdas"]["lambda_docker"]["layers"] == ["common", "shared"]
+        assert config_data["lambdas"]["lambda_example"]["type"] == "zip"
+        assert config_data["lambdas"]["lambda_example"]["layers"] == ["common"]
+
     assert result.exit_code == 0
 
 
@@ -410,7 +413,7 @@ def test_package_docker_generates_dockerfile_with_custom_layers(setup_test_direc
 
     # Verify the Dockerfile contains the correct layer logic
     dockerfile_content = open(os.path.join(lambda_with_layer_path, "Dockerfile")).read()
-    #assert "COPY ./layer_custom" in dockerfile_content
+    # assert "COPY ./layer_custom" in dockerfile_content
     assert (
         "RUN if [ -f '${LAMBDA_TASK_ROOT}/layer_custom/requirements.txt'"
         in dockerfile_content

@@ -14,7 +14,7 @@ from lambda_packer.file_utils import (
     config_file_path,
     dist_dir_path,
     abs_to_rel_path,
-    COMMON_DIR
+    COMMON_DIR,
 )
 from lambda_packer.template_utils import (
     generate_package_config,
@@ -76,7 +76,9 @@ def clean(verbose):
         if verbose:
             click.echo(f"{abs_to_rel_path(dist_path)} has been cleaned.")
         else:
-            click.secho(f"Directory '{abs_to_rel_path(dist_path)}' is now clean.", fg="green")
+            click.secho(
+                f"Directory '{abs_to_rel_path(dist_path)}' is now clean.", fg="green"
+            )
     else:
         click.echo(f"Directory {abs_to_rel_path(dist_path)} does not exist.")
 
@@ -127,7 +129,8 @@ def init(parent_dir, lambda_name):
 @main.command(name="config")
 @click.argument("lambda_name", required=False)
 @click.option("--repo", default=".", help="Path to the monorepo root directory.")
-def generate_config(repo, lambda_name):
+@click.option("--layers", multiple=True, default=[], help="Layers to add to the lambda")
+def generate_config(repo, lambda_name, layers):
     """Generate a package_config.yaml from an existing monorepo."""
 
     config_path = config_file_path(repo)
@@ -135,15 +138,17 @@ def generate_config(repo, lambda_name):
 
     if lambda_name:
         # Add or update a specific lambda in package_config.yaml
-        config_handler.config_lambda(repo, lambda_name)
+        config_handler.config_lambda(repo, lambda_name, layers)
     else:
         # Configure the entire monorepo
-        config_handler.config_repo(repo)
+        config_handler.config_repo(repo, layers)
 
 
 @main.command()
 @click.argument("lambda_name", required=False)
-@click.option("--config", default=Config.package_config_yaml, help="Path to the config file.")
+@click.option(
+    "--config", default=Config.package_config_yaml, help="Path to the config file."
+)
 @click.option(
     "--keep-dockerfile",
     is_flag=True,
@@ -165,6 +170,122 @@ def package(ctx, lambda_name, config, keep_dockerfile):
     else:
         package_all_lambdas(config_handler, keep_dockerfile)
 
+
+@main.command(name="package-layer")
+@click.argument("layer_name")
+def package_layer(layer_name):
+    """Package shared dependencies as a lambda layer"""
+    package_layer_internal(layer_name)
+
+
+@main.command("lambda")
+@click.argument("lambda_name")
+@click.option(
+    "--runtime",
+    default=Config.default_python_runtime,
+    help=f"Python runtime version for the lambda (default: {Config.default_python_runtime})",
+)
+@click.option(
+    "--type", default="zip", help="Packaging type for the lambda (zip or docker)"
+)
+@click.option("--layers", multiple=True, help="Layers to add to the lambda")
+@click.pass_context
+def add_lambda(ctx, lambda_name, runtime, type, layers):
+    """Add a new lambda to the existing monorepo and update package_config.yaml."""
+
+    # Set up the basic paths
+    base_dir = os.getcwd()
+    lambda_dir = os.path.join(base_dir, lambda_name)
+    package_config_path = os.path.join(base_dir, Config.package_config_yaml)
+    config = Config(package_config_path)
+
+    # Check if the Lambda already exists
+    if os.path.exists(lambda_dir):
+        click.secho(f"Lambda '{lambda_name}' already exists.", fg="red")
+        ctx.exit(1)
+
+    # Create the lambda directory and necessary files
+    os.makedirs(lambda_dir)
+
+    # Create a basic lambda_handler.py
+    lambda_handler_path = os.path.join(lambda_dir, "lambda_handler.py")
+    lambda_handler_content = f"""def lambda_handler(event, context):
+    return {{
+        'statusCode': 200,
+        'body': 'Hello from {lambda_name}!'
+    }}
+"""
+    with open(lambda_handler_path, "w") as f:
+        f.write(lambda_handler_content)
+
+    # Create a basic requirements.txt
+    requirements_path = os.path.join(lambda_dir, "requirements.txt")
+    with open(requirements_path, "w") as f:
+        f.write("# Add your lambda dependencies here\n")
+
+    config.config_lambda(base_dir, lambda_name, layers, runtime, type)
+
+    click.echo(
+        f"Lambda '{lambda_name}' added with runtime {runtime}, type {type}, and layers {layers}."
+    )
+
+
+def package_layer_internal(layer_name, runtime="3.8"):
+    """Package shared dependencies as a lambda layer (internal function)"""
+    common_path = os.path.join(os.getcwd(), layer_name)  # Path to layer directory
+    requirements_path = os.path.join(
+        common_path, "requirements.txt"
+    )  # Path to requirements.txt
+    layer_output_dir = os.path.join(os.getcwd(), "dist")  # Path to dist directory
+    output_file = os.path.join(layer_output_dir, f"{layer_name}.zip")
+
+    # AWS Lambda expects the layer to be structured inside 'python/lib/python3.x/site-packages/'
+    python_runtime = f"python{runtime}"
+    layer_temp_dir = os.path.join(os.getcwd(), "temp_layer")
+    python_lib_dir = os.path.join(
+        layer_temp_dir, f"python/lib/{python_runtime}/site-packages"
+    )
+
+    # Ensure temp directory and structure exist
+    if os.path.exists(layer_temp_dir):
+        shutil.rmtree(layer_temp_dir)  # Clean any previous temp files
+    os.makedirs(python_lib_dir, exist_ok=True)
+
+    # Step 1: Install dependencies into the site-packages directory if requirements.txt exists
+    if os.path.exists(requirements_path):
+        click.echo(
+            f"Installing dependencies for {layer_name} from {requirements_path}..."
+        )
+        subprocess.check_call(
+            [
+                os.sys.executable,
+                "-m",
+                "pip",
+                "install",
+                "-r",
+                requirements_path,
+                "-t",
+                python_lib_dir,
+            ]
+        )
+
+    # Step 2: Copy the entire layer directory to the site-packages
+    layer_dest = os.path.join(python_lib_dir, layer_name)
+    shutil.copytree(common_path, layer_dest)
+
+    # Step 3: Ensure the 'dist' directory exists
+    if not os.path.exists(layer_output_dir):
+        os.makedirs(layer_output_dir)
+
+    # Step 4: Zip the temp_layer directory to create the layer package
+    shutil.make_archive(output_file.replace(".zip", ""), "zip", layer_temp_dir)
+
+    # Clean up temporary directory
+    shutil.rmtree(layer_temp_dir)
+
+    click.secho(f"Lambda layer {layer_name} packaged as {output_file}.", fg="green")
+
+
 def package_lambda(lambda_name, config_handler, keep_dockerfile):
     """Package a single lambda based on its type (zip or docker)."""
     lambda_config = config_handler.get_lambda_config(lambda_name)
@@ -178,20 +299,18 @@ def package_lambda(lambda_name, config_handler, keep_dockerfile):
     else:
         package_zip(lambda_name, config_handler)
 
+
 def package_all_lambdas(config_handler, keep_dockerfile):
     """Package all lambdas defined in the config."""
     lambdas = config_handler.get_lambdas()
     for lambda_name, lambda_config in lambdas.items():
-        click.echo(f"Packaging lambda '{lambda_name}' of type '{lambda_config.get('type', 'zip')}'...")
+        click.echo(
+            f"Packaging lambda '{lambda_name}' of type '{lambda_config.get('type', 'zip')}'..."
+        )
         package_lambda(lambda_name, config_handler, keep_dockerfile)
-    click.secho(f"Finished packaging all lambdas in {config_handler.config_path}.", fg="green")
-
-
-@main.command(name="package-layer")
-@click.argument("layer_name")
-def package_layer(layer_name):
-    """Package shared dependencies as a lambda layer"""
-    package_layer_internal(layer_name)
+    click.secho(
+        f"Finished packaging all lambdas in {config_handler.config_path}.", fg="green"
+    )
 
 
 def package_docker(lambda_name, config_handler, keep_dockerfile):
@@ -226,7 +345,7 @@ def package_docker(lambda_name, config_handler, keep_dockerfile):
 
         for layer_name in layers:
             # Add COPY for each layer
-            #layer_copy += f"COPY ./{layer_name} ${{LAMBDA_TASK_ROOT}}/{layer_name}\n"
+            # layer_copy += f"COPY ./{layer_name} ${{LAMBDA_TASK_ROOT}}/{layer_name}\n"
             # Add RUN for each layer's requirements.txt if it exists
             layer_dependencies += f"RUN if [ -f '${{LAMBDA_TASK_ROOT}}/{layer_name}/requirements.txt' ]; then \\\n"
             layer_dependencies += f"    pip install --no-cache-dir -r ${{LAMBDA_TASK_ROOT}}/{layer_name}/requirements.txt -t ${{LAMBDA_TASK_ROOT}}; \\\n"
@@ -246,7 +365,9 @@ def package_docker(lambda_name, config_handler, keep_dockerfile):
         try:
             with open(dockerfile_path, "w") as f:
                 f.write(dockerfile_content)
-            click.secho(f"Dockerfile successfully generated at {dockerfile_path}", fg="green")
+            click.secho(
+                f"Dockerfile successfully generated at {dockerfile_path}", fg="green"
+            )
         except Exception as e:
             click.secho(f"Failed to generate Dockerfile: {str(e)}", fg="red")
 
@@ -258,7 +379,9 @@ def package_docker(lambda_name, config_handler, keep_dockerfile):
     layer_dirs_to_remove = []  # Keep track of the layer directories to remove later
 
     for layer_name in config_handler.get_lambda_layers(lambda_name):
-        layer_path = os.path.join(os.path.dirname(config_handler.config_path), layer_name)
+        layer_path = os.path.join(
+            os.path.dirname(config_handler.config_path), layer_name
+        )
         requirements_path = os.path.join(layer_path, "requirements.txt")
 
         # Ensure layer directory exists
@@ -380,132 +503,6 @@ def package_zip(lambda_name, config_handler):
         package_layer_internal(layer_name, runtime)
 
     click.echo(f"Lambda {lambda_name} packaged as {output_file}.")
-
-
-@main.command("lambda")
-@click.argument("lambda_name")
-@click.option(
-    "--runtime",
-    default="3.8",
-    help="Python runtime version for the lambda (default: 3.8)",
-)
-@click.option(
-    "--type", default="zip", help="Packaging type for the lambda (zip or docker)"
-)
-@click.option("--layers", multiple=True, help="Layers to add to the lambda")
-def add_lambda(lambda_name, runtime, type, layers):
-    """Add a new lambda to the existing monorepo and update package_config.yaml."""
-
-    # Set up the basic paths
-    base_dir = os.getcwd()
-    lambda_dir = os.path.join(base_dir, lambda_name)
-    package_config_path = os.path.join(base_dir, Config.package_config_yaml)
-
-    # Check if the Lambda already exists
-    if os.path.exists(lambda_dir):
-        raise FileExistsError(f"Lambda '{lambda_name}' already exists.")
-
-    # Create the lambda directory and necessary files
-    os.makedirs(lambda_dir)
-
-    # Create a basic lambda_handler.py
-    lambda_handler_path = os.path.join(lambda_dir, "lambda_handler.py")
-    lambda_handler_content = f"""def lambda_handler(event, context):
-    return {{
-        'statusCode': 200,
-        'body': 'Hello from {lambda_name}!'
-    }}
-"""
-    with open(lambda_handler_path, "w") as f:
-        f.write(lambda_handler_content)
-
-    # Create a basic requirements.txt
-    requirements_path = os.path.join(lambda_dir, "requirements.txt")
-    with open(requirements_path, "w") as f:
-        f.write("# Add your lambda dependencies here\n")
-
-    # Update the package_config.yaml file
-    if not os.path.exists(package_config_path):
-        raise FileNotFoundError(f"{Config.package_config_yaml} not found at {base_dir}")
-
-    with open(package_config_path, "r") as f:
-        config_data = yaml.safe_load(f)
-
-    # Add the new Lambda to the package_config.yaml
-    if "lambdas" not in config_data:
-        config_data["lambdas"] = {}
-
-    new_lambda_config = {"type": type, "runtime": runtime}
-
-    # Add layers if specified
-    if layers:
-        new_lambda_config["layers"] = list(layers)
-
-    config_data["lambdas"][lambda_name] = new_lambda_config
-
-    # Write the updated config back to package_config.yaml
-    with open(package_config_path, "w") as f:
-        yaml.dump(config_data, f, default_flow_style=False)
-
-    click.echo(
-        f"Lambda '{lambda_name}' added with runtime {runtime}, type {type}, and layers {layers}."
-    )
-
-
-def package_layer_internal(layer_name, runtime="3.8"):
-    """Package shared dependencies as a lambda layer (internal function)"""
-    common_path = os.path.join(os.getcwd(), layer_name)  # Path to layer directory
-    requirements_path = os.path.join(
-        common_path, "requirements.txt"
-    )  # Path to requirements.txt
-    layer_output_dir = os.path.join(os.getcwd(), "dist")  # Path to dist directory
-    output_file = os.path.join(layer_output_dir, f"{layer_name}.zip")
-
-    # AWS Lambda expects the layer to be structured inside 'python/lib/python3.x/site-packages/'
-    python_runtime = f"python{runtime}"
-    layer_temp_dir = os.path.join(os.getcwd(), "temp_layer")
-    python_lib_dir = os.path.join(
-        layer_temp_dir, f"python/lib/{python_runtime}/site-packages"
-    )
-
-    # Ensure temp directory and structure exist
-    if os.path.exists(layer_temp_dir):
-        shutil.rmtree(layer_temp_dir)  # Clean any previous temp files
-    os.makedirs(python_lib_dir, exist_ok=True)
-
-    # Step 1: Install dependencies into the site-packages directory if requirements.txt exists
-    if os.path.exists(requirements_path):
-        click.echo(
-            f"Installing dependencies for {layer_name} from {requirements_path}..."
-        )
-        subprocess.check_call(
-            [
-                os.sys.executable,
-                "-m",
-                "pip",
-                "install",
-                "-r",
-                requirements_path,
-                "-t",
-                python_lib_dir,
-            ]
-        )
-
-    # Step 2: Copy the entire layer directory to the site-packages
-    layer_dest = os.path.join(python_lib_dir, layer_name)
-    shutil.copytree(common_path, layer_dest)
-
-    # Step 3: Ensure the 'dist' directory exists
-    if not os.path.exists(layer_output_dir):
-        os.makedirs(layer_output_dir)
-
-    # Step 4: Zip the temp_layer directory to create the layer package
-    shutil.make_archive(output_file.replace(".zip", ""), "zip", layer_temp_dir)
-
-    # Clean up temporary directory
-    shutil.rmtree(layer_temp_dir)
-
-    click.secho(f"Lambda layer {layer_name} packaged as {output_file}.", fg="green")
 
 
 if __name__ == "__main__":

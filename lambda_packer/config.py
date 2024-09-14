@@ -16,7 +16,9 @@ class Config:
     def load_config(self):
         """Load the YAML configuration from the file or create an empty one if it doesn't exist."""
         if not os.path.exists(self.config_path):
-            click.echo(f"Config file not found: {self.package_config_yaml}, creating...")
+            click.echo(
+                f"Config file not found: {self.package_config_yaml}, creating..."
+            )
             # Create an empty config file
             with open(self.config_path, "w") as config_file:
                 yaml.dump({}, config_file)
@@ -61,7 +63,7 @@ class Config:
         if self.errors:
             raise ValueError(f"Config validation failed with errors: {self.errors}")
 
-    def config_lambda(self, repo, lambda_name):
+    def config_lambda(self, repo, lambda_name, layers, runtime=default_python_runtime, lambda_type="zip"):
         """Add a specific lambda to package_config.yaml."""
         lambda_path = os.path.join(repo, lambda_name)
 
@@ -80,22 +82,26 @@ class Config:
         # Determine lambda type (zip or docker), based on the presence of a Dockerfile
         lambda_type = (
             "docker"
-            if os.path.exists(os.path.join(lambda_path, "Dockerfile"))
+            if os.path.exists(os.path.join(lambda_path, "Dockerfile")) or lambda_type == "docker"
             else "zip"
         )
 
         # Add the lambda to the config
         self.config_data["lambdas"][lambda_name] = {
             "type": lambda_type,
-            "runtime": self.default_python_runtime,  # Default runtime
+            "runtime": runtime,
+            "layers": list(layers),
         }
 
         # Save the updated config
         self.save_config()
 
-        click.secho(f"Lambda '{lambda_name}' has been added to {self.package_config_yaml}.", fg="green")
+        click.secho(
+            f"Lambda '{lambda_name}' has been added to {self.package_config_yaml}.",
+            fg="green",
+        )
 
-    def config_repo(self, repo):
+    def config_repo(self, repo, layers):
         """Scan the entire monorepo and add all detected lambdas to package_config.yaml."""
         lambdas = self.config_data.get("lambdas", {})
 
@@ -109,6 +115,7 @@ class Config:
                     lambdas[lambda_name] = {
                         "type": lambda_type,
                         "runtime": self.default_python_runtime,
+                        "layers": list(layers),
                     }
 
         self.config_data["lambdas"] = lambdas
