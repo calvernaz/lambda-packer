@@ -10,10 +10,10 @@ It provides an opinionated approach to develop Lambdas using a monorepo, allowin
 with shared dependencies packaged as Lambda layers.
 ### Key Features
 
-- **Package Lambdas as zip files or Docker containers**
-- **Support for multiple Lambda layers** shared across functions
-- **Simple YAML configuration** to manage Lambdas and layers
-- **Layer packaging with automatic dependency handling**
+- Package Lambdas as zip files or Docker containers**
+- Support for multiple Lambda layers shared across functions
+- Simple YAML configuration** to manage Lambdas and layers
+- Layer packaging with automatic dependency handling
 
 ---
 
