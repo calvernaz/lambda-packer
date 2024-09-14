@@ -63,7 +63,14 @@ class Config:
         if self.errors:
             raise ValueError(f"Config validation failed with errors: {self.errors}")
 
-    def config_lambda(self, repo, lambda_name, layers, runtime=default_python_runtime, lambda_type="zip"):
+    def config_lambda(
+        self,
+        repo,
+        lambda_name,
+        layers,
+        runtime=default_python_runtime,
+        lambda_type="zip",
+    ):
         """Add a specific lambda to package_config.yaml."""
         lambda_path = os.path.join(repo, lambda_name)
 
@@ -82,7 +89,8 @@ class Config:
         # Determine lambda type (zip or docker), based on the presence of a Dockerfile
         lambda_type = (
             "docker"
-            if os.path.exists(os.path.join(lambda_path, "Dockerfile")) or lambda_type == "docker"
+            if os.path.exists(os.path.join(lambda_path, "Dockerfile"))
+            or lambda_type == "docker"
             else "zip"
         )
 
