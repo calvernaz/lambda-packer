@@ -9,9 +9,16 @@ import yaml
 
 from lambda_packer.config import Config
 from lambda_packer.docker_utils import check_docker_daemon, docker_client
-from lambda_packer.file_utils import file_exists
-
-PACKAGE_CONFIG_YAML = "package_config.yaml"
+from lambda_packer.file_utils import (
+    file_exists,
+    config_file_path,
+    dist_dir_path,
+    COMMON_DIR
+)
+from lambda_packer.template_utils import (
+    generate_package_config,
+    generate_lambda_handler,
+)
 
 DOCKERFILE_TEMPLATE = Template(
     """
@@ -47,9 +54,7 @@ def main():
 @main.command()
 def clean(verbose):
     """Clean the 'dist' directory by deleting all files inside it."""
-    config_path = os.path.join(os.getcwd(), PACKAGE_CONFIG_YAML)
-
-    if not file_exists(config_path):
+    if not file_exists(config_file_path()):
         click.echo(
             f"Error: 'package_config.yaml' not found in the current directory. "
             f"Please make sure you're in the correct monorepo directory with a valid configuration."
@@ -57,10 +62,10 @@ def clean(verbose):
         return
 
     # Get the relative path of the dist directory
-    dist_path = os.path.join(os.path.dirname(config_path), "dist")
+    dist_path = dist_dir_path()
 
     # Clean up the dist directory
-    if os.path.exists(dist_path) and os.path.isdir(dist_path):
+    if file_exists(dist_path) and os.path.isdir(dist_path):
         if verbose:
             click.echo(f"Cleaning {os.path.relpath(dist_path)}...")
 
@@ -87,10 +92,8 @@ def init(parent_dir, lambda_name):
 
     # Set base directory paths inside the parent directory
     parent_path = os.path.join(os.getcwd(), parent_dir)
-    common_dir = os.path.join(parent_path, "common")
+    common_dir = os.path.join(parent_path, COMMON_DIR)
     lambda_dir = os.path.join(parent_path, lambda_name)
-    dist_dir = os.path.join(parent_path, "dist")
-    package_config_path = os.path.join(parent_path, PACKAGE_CONFIG_YAML)
 
     # Check if parent directory already exists
     if file_exists(parent_path):
@@ -101,30 +104,16 @@ def init(parent_dir, lambda_name):
     # Create parent, common, lambda, and dist directories
     os.makedirs(common_dir, exist_ok=False)
     os.makedirs(lambda_dir, exist_ok=False)
-    os.makedirs(dist_dir, exist_ok=False)
+    os.makedirs(dist_dir_path(parent_path), exist_ok=False)
 
     # Create a basic package_config.yaml file inside the parent directory
-    package_config_content = f"""lambdas:
-  {lambda_name}:
-    type: zip
-    layers:
-      - common
-"""
-
-    with open(package_config_path, "w") as f:
-        f.write(package_config_content)
+    with open(config_file_path(parent_path), "w") as f:
+        f.write(generate_package_config(lambda_name))
 
     # Create a basic lambda_handler.py in the lambda directory
     lambda_handler_path = os.path.join(lambda_dir, "lambda_handler.py")
-    lambda_handler_content = f"""def lambda_handler(event, context):
-    return {{
-        'statusCode': 200,
-        'body': 'Hello from {lambda_name}!'
-    }}
-"""
-
     with open(lambda_handler_path, "w") as f:
-        f.write(lambda_handler_content)
+        f.write(generate_lambda_handler(lambda_name))
 
     # Create a basic requirements.txt in the lambda directory
     requirements_path = os.path.join(lambda_dir, "requirements.txt")
@@ -140,86 +129,20 @@ def init(parent_dir, lambda_name):
 def generate_config(repo, lambda_name):
     """Generate a package_config.yaml from an existing monorepo."""
 
-    config_path = os.path.join(repo, PACKAGE_CONFIG_YAML)
-
-    # Step 1: Ensure package_config.yaml exists or create a new one if generating for the first time
-    if os.path.exists(config_path):
-        with open(config_path, "r") as config_file:
-            package_config = yaml.safe_load(config_file) or {"lambdas": {}}
-    else:
-        package_config = {"lambdas": {}}
+    config_path = config_file_path(repo)
+    config_handler = Config(config_path)
 
     if lambda_name:
-        # Step 2: Add or update a specific lambda in package_config.yaml
-        add_lambda_to_config(lambda_name, package_config, repo, config_path)
+        # Add or update a specific lambda in package_config.yaml
+        config_handler.config_lambda(repo, lambda_name)
     else:
-        # Step 3: If no lambda name is provided, configure the entire monorepo
-        configure_entire_monorepo(package_config, repo, config_path)
-
-
-def add_lambda_to_config(lambda_name, package_config, monorepo_path, config_path):
-    """Add a specific lambda to package_config.yaml."""
-    lambda_path = os.path.join(monorepo_path, lambda_name)
-
-    # Check if the lambda directory exists
-    if not os.path.exists(lambda_path):
-        click.echo(f"Error: Lambda '{lambda_name}' not found in {monorepo_path}.")
-        return
-
-    # Check if the lambda is already in the config
-    if lambda_name in package_config.get("lambdas", {}):
-        click.echo(
-            f"Lambda '{lambda_name}' is already included in {PACKAGE_CONFIG_YAML}."
-        )
-        return
-
-    # Determine lambda type (zip or docker)
-    lambda_type = (
-        "docker" if os.path.exists(os.path.join(lambda_path, "Dockerfile")) else "zip"
-    )
-
-    # Add the lambda to the config
-    package_config["lambdas"][lambda_name] = {
-        "type": lambda_type,
-        "runtime": "3.8",  # Default runtime
-    }
-
-    # Save the updated config
-    with open(config_path, "w") as config_file:
-        yaml.dump(package_config, config_file, default_flow_style=False)
-
-    click.echo(f"Lambda '{lambda_name}' has been added to {PACKAGE_CONFIG_YAML}.")
-
-
-def configure_entire_monorepo(package_config, monorepo_path, config_path):
-    """Scan the entire monorepo and add all detected lambdas to package_config.yaml."""
-    lambdas = package_config.get("lambdas", {})
-
-    # Scan for lambdas
-    for root, dirs, files in os.walk(monorepo_path):
-        if "lambda_handler.py" in files or "Dockerfile" in files:
-            lambda_name = os.path.basename(root)
-            if lambda_name not in lambdas:
-                lambda_type = "docker" if "Dockerfile" in files else "zip"
-                lambdas[lambda_name] = {
-                    "type": lambda_type,
-                    "runtime": "3.8",  # Default runtime
-                }
-
-    package_config["lambdas"] = lambdas
-
-    # Save the updated config
-    with open(config_path, "w") as config_file:
-        yaml.dump(package_config, config_file, default_flow_style=False)
-
-    click.echo(f"Updated {PACKAGE_CONFIG_YAML} with {len(lambdas)} lambda(s).")
+        # Configure the entire monorepo
+        config_handler.config_repo(repo)
 
 
 @main.command()
 @click.argument("lambda_name", required=False)
-@click.option(
-    "--config", default=PACKAGE_CONFIG_YAML, help="Path to the config file."
-)
+@click.option("--config", default=Config.package_config_yaml, help="Path to the config file.")
 @click.option(
     "--keep-dockerfile",
     is_flag=True,
@@ -487,7 +410,7 @@ def add_lambda(lambda_name, runtime, type, layers):
     # Set up the basic paths
     base_dir = os.getcwd()
     lambda_dir = os.path.join(base_dir, lambda_name)
-    package_config_path = os.path.join(base_dir, PACKAGE_CONFIG_YAML)
+    package_config_path = os.path.join(base_dir, Config.package_config_yaml)
 
     # Check if the Lambda already exists
     if os.path.exists(lambda_dir):
@@ -514,7 +437,7 @@ def add_lambda(lambda_name, runtime, type, layers):
 
     # Update the package_config.yaml file
     if not os.path.exists(package_config_path):
-        raise FileNotFoundError(f"{PACKAGE_CONFIG_YAML} not found at {base_dir}")
+        raise FileNotFoundError(f"{Config.package_config_yaml} not found at {base_dir}")
 
     with open(package_config_path, "r") as f:
         config_data = yaml.safe_load(f)

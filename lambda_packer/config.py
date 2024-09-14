@@ -1,24 +1,29 @@
 import yaml
 import click
+import os
 
 
 class Config:
+    default_python_runtime = "3.12"
+    package_config_yaml = "package_config.yaml"
+
     def __init__(self, config_path):
         self.config_path = config_path
         self.config_data = self.load_config()
         self.errors = []
 
     def load_config(self):
-        """Load the YAML configuration from the file"""
+        """Load the YAML configuration from the file or create an empty one if it doesn't exist."""
+        if not os.path.exists(self.config_path):
+            click.echo(f"Config file not found: {self.package_config_yaml}, creating...")
+            # Create an empty config file
+            with open(self.config_path, "w") as config_file:
+                yaml.dump({}, config_file)
+            return {}
+
         try:
             with open(self.config_path, "r") as config_file:
                 return yaml.safe_load(config_file)
-        except FileNotFoundError:
-            click.echo(
-                f"Error: The config file '{self.config_path}' was not found. "
-                "Please ensure that it exists in the current directory or specify the correct path."
-            )
-            raise SystemExit(1)  # Gracefully exit with error code 1
         except yaml.YAMLError as e:
             raise ValueError(f"Error parsing YAML config: {str(e)}")
 
@@ -55,6 +60,68 @@ class Config:
         if self.errors:
             raise ValueError(f"Config validation failed with errors: {self.errors}")
 
+    def config_lambda(self, repo, lambda_name):
+        """Add a specific lambda to package_config.yaml."""
+        lambda_path = os.path.join(repo, lambda_name)
+
+        # Check if the lambda directory exists
+        if not os.path.exists(lambda_path):
+            click.echo(f"Error: Lambda '{lambda_name}' not found in {repo}.")
+            return
+
+        # Check if the lambda is already in the config
+        if lambda_name in self.config_data.get("lambdas", {}):
+            click.echo(
+                f"Lambda '{lambda_name}' is already included in {self.package_config_yaml}."
+            )
+            return
+
+        # Determine lambda type (zip or docker), based on the presence of a Dockerfile
+        lambda_type = (
+            "docker"
+            if os.path.exists(os.path.join(lambda_path, "Dockerfile"))
+            else "zip"
+        )
+
+        # Add the lambda to the config
+        self.config_data["lambdas"][lambda_name] = {
+            "type": lambda_type,
+            "runtime": self.default_python_runtime,  # Default runtime
+        }
+
+        # Save the updated config
+        self.save_config()
+
+        click.echo(f"Lambda '{lambda_name}' has been added to {self.package_config_yaml}.")
+
+    def config_repo(self, repo):
+        """Scan the entire monorepo and add all detected lambdas to package_config.yaml."""
+        lambdas = self.config_data.get("lambdas", {})
+
+        # Scan for lambdas
+        for root, dirs, files in os.walk(repo):
+            # TODO: detect the lambda file if more than one throw an error
+            if "lambda_handler.py" in files or "Dockerfile" in files:
+                lambda_name = os.path.basename(root)
+                if lambda_name not in lambdas:
+                    lambda_type = "docker" if "Dockerfile" in files else "zip"
+                    lambdas[lambda_name] = {
+                        "type": lambda_type,
+                        "runtime": self.default_python_runtime,
+                    }
+
+        self.config_data["lambdas"] = lambdas
+
+        # Save the updated config
+        self.save_config()
+
+        click.echo(f"Updated {self.package_config_yaml} with {len(lambdas)} lambda(s).")
+
+    def save_config(self):
+        """Save the current configuration to the YAML file"""
+        with open(self.config_path, "w") as config_file:
+            yaml.dump(self.config_data, config_file, default_flow_style=False)
+
     def validate_runtime(self, runtime):
         """Validate that the runtime is between 3.8 and 3.12"""
         valid_runtimes = ["3.8", "3.9", "3.10", "3.11", "3.12"]
@@ -78,4 +145,4 @@ class Config:
     def get_lambda_runtime(self, lambda_name):
         """Return the runtime for a specific lambda, defaulting to '3.8' if not provided"""
         lambda_config = self.get_lambda_config(lambda_name)
-        return lambda_config.get("runtime", "3.8")
+        return lambda_config.get("runtime", self.default_python_runtime)

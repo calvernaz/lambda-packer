@@ -71,7 +71,7 @@ def test_add_lambda_to_config(setup_test_directory):
         config_data = yaml.safe_load(config_file)
         assert "lambda_b" in config_data["lambdas"]
         assert config_data["lambdas"]["lambda_b"]["type"] == "docker"
-        assert config_data["lambdas"]["lambda_b"]["runtime"] == "3.8"
+        assert config_data["lambdas"]["lambda_b"]["runtime"] == "3.12"
 
     # Verify the command output
     assert result.exit_code == 0
@@ -83,7 +83,7 @@ def test_scan_entire_monorepo(setup_test_directory):
     runner = CliRunner()
 
     # Run the lambda-packer config command to scan the whole monorepo
-    result = runner.invoke(main, ["config"])
+    result = runner.invoke(main, ["config", "--repo", setup_test_directory])
 
     # Verify that both lambda_a and lambda_b are included in package_config.yaml
     with open("package_config.yaml", "r") as config_file:
@@ -265,7 +265,7 @@ def test_missing_package_config():
     result = runner.invoke(main, ["package", "lambda_example"])
 
     # Check that the friendly error message is in the output
-    assert "Error: The config file 'package_config.yaml' was not found" in result.output
+    assert "Config file not found: package_config.yaml, creating..." in result.output
     assert result.exit_code == 1
 
 

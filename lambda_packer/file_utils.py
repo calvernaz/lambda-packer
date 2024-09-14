@@ -1,6 +1,11 @@
 import os
 import yaml
 
+from lambda_packer.config import Config
+
+DIST_DIR: str = "dist"
+COMMON_DIR: str = "common"
+
 
 def get_common_paths(parent_dir, lambda_name):
     parent_path = os.path.join(os.getcwd(), parent_dir)
@@ -28,3 +33,11 @@ def file_exists(file_path):
 def create_file(file_path, content):
     with open(file_path, "w") as file:
         file.write(content)
+
+
+def config_file_path(repo: str = os.getcwd()) -> str:
+    return os.path.join(repo, Config.package_config_yaml)
+
+
+def dist_dir_path(repo: str = os.getcwd()) -> str:
+    return os.path.join(os.path.dirname(config_file_path(repo)), DIST_DIR)
