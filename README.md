@@ -118,6 +118,7 @@ This command packages the `common` directory as a Lambda layer and zips it to th
 - `init <parent_directory> --lambda-name <lambda_name>`: Initialize a new monorepo with a common folder, a lambda, and `package_config.yaml`.
 - `package <lambda_name>`: Package the specified Lambda function (either as zip or Docker container).
 - `package-layer <layer_name>`: Package a specific layer (e.g., `common`) into a zip file.
+- `config <lambda_name>`: Generate a package_config.yaml from an existing monorepo. 
 - `clean`: Clean the `dist/` directory by removing all contents.
 
 ---
