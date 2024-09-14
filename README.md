@@ -27,9 +27,9 @@ pip install lambda-packer
 
 ## Usage
 
-### 1. Initialize a New Monorepo
+### 1. Initialize a new repo
 
-The `init` command creates a basic monorepo structure for your Lambda functions, including a `common` folder for shared dependencies, an example Lambda function, and a `package_config.yaml` file.
+The `init` command creates a basic repository structure for your Lambda functions, including a `common` folder for shared dependencies, an example Lambda function, and a `package_config.yaml` file.
 
 ```bash
 lambda-packer init <parent_directory> --lambda-name <lambda_name>
@@ -153,9 +153,9 @@ lambda-packer package my_lambda
 lambda-packer package-layer common
 ```
 
-### 6. Adding a New Lambda to an Existing Monorepo
+### 6. Adding a new lambda to an existing repository
 
-You can add a new Lambda to an existing monorepo using the `lambda` command. You can also specify layers to be added to the new Lambda.
+You can add a new Lambda to an existing repository using the `lambda` command. You can also specify layers to be added to the new Lambda.
 
 ```bash
 lambda-packer lambda <lambda_name> --runtime <runtime_version> --type <zip|docker> --layers <layer1> --layers <layer2>
