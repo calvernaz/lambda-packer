@@ -27,6 +27,9 @@ pip install lambda-packer
 
 ## Usage
 
+
+[![asciicast](https://asciinema.org/a/7GlIkCfYmUKgxwaSTv17A7drL.svg)](https://asciinema.org/a/7GlIkCfYmUKgxwaSTv17A7drL?autoplay=1&speed=2)
+
 ### 1. Initialize a new repo
 
 The `init` command creates a basic repository structure for your Lambda functions, including a `common` folder for shared dependencies, an example Lambda function, and a `package_config.yaml` file.
