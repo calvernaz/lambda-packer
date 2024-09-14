@@ -5,6 +5,7 @@ import os
 
 class Config:
     default_python_runtime = "3.12"
+    default_arch = "linux/amd64"
     package_config_yaml = "package_config.yaml"
 
     def __init__(self, config_path):
@@ -92,7 +93,7 @@ class Config:
         # Save the updated config
         self.save_config()
 
-        click.echo(f"Lambda '{lambda_name}' has been added to {self.package_config_yaml}.")
+        click.secho(f"Lambda '{lambda_name}' has been added to {self.package_config_yaml}.", fg="green")
 
     def config_repo(self, repo):
         """Scan the entire monorepo and add all detected lambdas to package_config.yaml."""
