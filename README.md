@@ -61,11 +61,11 @@ The `package_config.yaml` file is where you define how to package your Lambdas. 
 
 ```yaml
 lambdas:
-my_lambda:
-type: zip
-runtime: "3.12"  # Specify the Python runtime version
-layers:
-- common
+  my_lambda:
+    type: zip
+    runtime: "3.12"  # Specify the Python runtime version
+    layers:
+    - common
 ```
 
 ### 3. Package Lambda as a Zip
@@ -84,11 +84,11 @@ To package a Lambda as a Docker container (for a `docker` type Lambda), modify t
 
 ```yaml
 lambdas:
-my_lambda:
-type: docker
-runtime: "3.9"
-layers:
-- common
+  my_lambda:
+    type: docker
+    runtime: "3.9"
+    layers:
+    - common
 ```
 
 Then run:
@@ -132,11 +132,11 @@ lambda-packer init my_project --lambda-name my_lambda
 
 ```yaml
 lambdas:
-my_lambda:
-type: zip
-runtime: "3.9"
-layers:
-- common
+  my_lambda:
+    type: zip
+    runtime: "3.9"
+    layers:
+    - common
 ```
 
 3. **Install dependencies** for `my_lambda` by editing `my_lambda/requirements.txt`.
@@ -171,12 +171,12 @@ This will create a new Lambda directory and update the `package_config.yaml` lik
 
 ```yaml
 lambdas:
-my_new_lambda:
-runtime: "3.9"
-type: docker
-layers:
-- common
-- shared
+  my_new_lambda:
+    runtime: "3.9"
+    type: docker
+    layers:
+    - common
+    - shared
 ```
 
 If no layers are specified, the `layers` key will not be added.
@@ -191,9 +191,9 @@ This will update the `package_config.yaml` like this:
 
 ```yaml
 lambdas:
-my_new_lambda:
-runtime: "3.9"
-type: docker
+  my_new_lambda:
+    runtime: "3.9"
+    type: docker
 ```
 
 ---
