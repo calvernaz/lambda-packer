@@ -9,14 +9,10 @@ from lambda_packer.config import Config
 from lambda_packer.docker_utils import check_docker_daemon, docker_client
 from lambda_packer.file_utils import file_exists, abs_to_rel_path
 
-DOCKERFILE_TEMPLATE = Template(
-    """
+DOCKERFILE_TEMPLATE = Template("""
 FROM public.ecr.aws/lambda/python:$runtime
 
-# Copy function code
 COPY . $${LAMBDA_TASK_ROOT}/
-
-$layer_copy
 
 # Install dependencies for the Lambda function if requirements.txt is present
 RUN if [ -f "requirements.txt" ]; then \\
@@ -29,8 +25,7 @@ $layer_dependencies
 
 # Specify the Lambda handler
 CMD ["$file_base_name.$function_name"]
-"""
-)
+""")
 
 
 def package_layer_internal(layer_name, runtime=Config.default_python_runtime):
@@ -146,13 +141,9 @@ def package_docker(lambda_name, config_handler, keep_dockerfile):
 
         dockerfile_generated = True
         # Dynamically generate COPY and RUN statements for layers
-        layer_copy = ""
         layer_dependencies = ""
 
         for layer_name in layers:
-            # Add COPY for each layer
-            # layer_copy += f"COPY ./{layer_name} ${{LAMBDA_TASK_ROOT}}/{layer_name}\n"
-            # Add RUN for each layer's requirements.txt if it exists
             layer_dependencies += f"RUN if [ -f '${{LAMBDA_TASK_ROOT}}/{layer_name}/requirements.txt' ]; then \\\n"
             layer_dependencies += f"    pip install --no-cache-dir -r ${{LAMBDA_TASK_ROOT}}/{layer_name}/requirements.txt -t ${{LAMBDA_TASK_ROOT}}; \\\n"
             layer_dependencies += f"else \\\n"
@@ -164,7 +155,6 @@ def package_docker(lambda_name, config_handler, keep_dockerfile):
             runtime=lambda_runtime,
             file_base_name=file_base_name,
             function_name=function_name,
-            layer_copy=layer_copy,
             layer_dependencies=layer_dependencies,
         )
 
@@ -172,7 +162,7 @@ def package_docker(lambda_name, config_handler, keep_dockerfile):
             with open(dockerfile_path, "w") as f:
                 f.write(dockerfile_content)
             click.secho(
-                f"Dockerfile successfully generated at {dockerfile_path}", fg="green"
+                f"Dockerfile successfully generated at {abs_to_rel_path(dockerfile_path)}", fg="green"
             )
         except Exception as e:
             click.secho(f"Failed to generate Dockerfile: {str(e)}", fg="red")
@@ -181,7 +171,9 @@ def package_docker(lambda_name, config_handler, keep_dockerfile):
         f"Building Docker image for {lambda_name} with tag {image_tag} and architecture {target_arch}..."
     )
 
-    # Step 2: Prepare layer files and dependencies for the Docker image
+    #click.echo(f"Build context path: {lambda_path}")
+
+    # Prepare layer files and dependencies for the Docker image
     layer_dirs_to_remove = []  # Keep track of the layer directories to remove later
 
     for layer_name in config_handler.get_lambda_layers(lambda_name):
@@ -194,13 +186,13 @@ def package_docker(lambda_name, config_handler, keep_dockerfile):
         if not os.path.exists(layer_path):
             raise FileNotFoundError(f"Layer directory {layer_path} not found")
 
-        # Step 1a: Copy the layer code into the Docker image directory (e.g., into /var/task/{layer_name})
+        # Copy the layer code into the Docker image directory (e.g., into /var/task/{layer_name})
         layer_dest = os.path.join(lambda_path, layer_name)
+        click.echo(f"Copying layer '{layer_name}' to '{abs_to_rel_path(layer_dest)}'")
         shutil.copytree(layer_path, layer_dest)
         layer_dirs_to_remove.append(layer_dest)  # Track the directory to remove later
-        click.echo(f"Copied {layer_name} to the Docker image")
 
-        # Step 1b: Install dependencies for the layer if requirements.txt is present
+        # Install dependencies for the layer if requirements.txt is present
         if os.path.exists(requirements_path):
             click.echo(f"Installing dependencies for layer {layer_name}...")
             subprocess.check_call(
@@ -216,7 +208,7 @@ def package_docker(lambda_name, config_handler, keep_dockerfile):
                 ]
             )
 
-    # Step 3: Build the Docker image with the specified architecture
+    # Build the Docker image
     try:
         build_output = docker_client().api.build(
             path=lambda_path,
@@ -237,21 +229,20 @@ def package_docker(lambda_name, config_handler, keep_dockerfile):
         click.echo(f"Error during Docker build: {str(e)}")
         raise
     finally:
-        # Step 3: Clean up - Remove the layer directories from the Lambda's directory
         for layer_dir in layer_dirs_to_remove:
             click.echo(f"Removing layer directory: {layer_dir}")
             shutil.rmtree(layer_dir)
 
         if (
-            dockerfile_generated
-            and not keep_dockerfile
-            and os.path.exists(dockerfile_path)
+                dockerfile_generated
+                and not keep_dockerfile
+                and os.path.exists(dockerfile_path)
         ):
             click.echo(f"Removing generated Dockerfile for {lambda_name}")
             os.remove(dockerfile_path)
 
     click.echo(
-        f"Lambda {lambda_name} packaged as Docker container with tag {image_tag}."
+        f"Lambda '{lambda_name}' packaged as Docker container with tag '{image_tag}'."
     )
 
 
