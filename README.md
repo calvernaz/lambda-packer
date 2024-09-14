@@ -12,7 +12,7 @@ with shared dependencies packaged as Lambda layers.
 
 - Package Lambdas as zip files or Docker containers**
 - Support for multiple Lambda layers shared across functions
-- Simple YAML configuration** to manage Lambdas and layers
+- Simple YAML configuration to manage Lambdas and layers
 - Layer packaging with automatic dependency handling
 
 ---
