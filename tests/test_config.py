@@ -135,8 +135,8 @@ def test_validate_with_missing_type(tmpdir):
     "config_content, expected",
     [
         (
-            "lambdas:\n  lambda1:\n    type: zip\n",
-            {"lambdas": {"lambda1": {"type": "zip"}}},
+                "lambdas:\n  lambda1:\n    type: zip\n",
+                {"lambdas": {"lambda1": {"type": "zip"}}},
         ),
         ("", {}),
     ],
@@ -197,8 +197,8 @@ def test_validate(config_instance, config_data, expected_error):
         ("3.8", None),
         ("3.12", None),
         (
-            "3.7",
-            "Invalid runtime: 3.7. Supported runtimes are: 3.8, 3.9, 3.10, 3.11, 3.12",
+                "3.7",
+                "Invalid runtime: 3.7. Supported runtimes are: 3.8, 3.9, 3.10, 3.11, 3.12",
         ),
     ],
     ids=["valid_runtime_3.8", "valid_runtime_3.12", "invalid_runtime"],
@@ -218,26 +218,26 @@ def test_validate_runtime(config_instance, runtime, expected_error):
     "repo, lambda_name, layers, runtime, lambda_type, expected_output",
     [
         (
-            "/repo",
-            "lambda1",
-            ["layer1"],
-            "3.8",
-            "zip",
-            "Lambda 'lambda1' has been added to package_config.yaml.",
+                "/repo",
+                "lambda1",
+                ["layer1"],
+                "3.8",
+                "zip",
+                "Lambda 'lambda1' has been added to package_config.yaml.",
         ),
         (
-            "/repo",
-            "lambda1",
-            ["layer1"],
-            "3.8",
-            "docker",
-            "Lambda 'lambda1' has been added to package_config.yaml.",
+                "/repo",
+                "lambda1",
+                ["layer1"],
+                "3.8",
+                "docker",
+                "Lambda 'lambda1' has been added to package_config.yaml.",
         ),
     ],
     ids=["zip_lambda", "docker_lambda"],
 )
 def test_config_lambda(
-    config_instance, repo, lambda_name, layers, runtime, lambda_type, expected_output
+        config_instance, repo, lambda_name, layers, runtime, lambda_type, expected_output
 ):
     # Arrange
     with patch("os.path.exists", return_value=True):
@@ -259,8 +259,8 @@ def test_config_lambda(
     "layers, expected_lambdas",
     [
         (
-            ["layer1"],
-            {"lambda1": {"type": "zip", "runtime": "3.12", "layers": ["layer1"]}},
+                ["layer1"],
+                {"lambda1": {"type": "zip", "runtime": "3.12", "layers": ["layer1"]}},
         ),
     ],
     ids=["single_lambda"],
@@ -342,7 +342,7 @@ def test_get_lambda_layers(config_instance, config_data, lambda_name, expected_l
     ids=["existing_runtime", "default_runtime"],
 )
 def test_get_lambda_runtime(
-    config_instance, config_data, lambda_name, expected_runtime
+        config_instance, config_data, lambda_name, expected_runtime
 ):
     # Arrange
     config_instance.config_data = config_data
@@ -352,3 +352,39 @@ def test_get_lambda_runtime(
 
     # Assert
     assert result == expected_runtime
+
+
+def test_config_repo_exclude_dirs(config_instance):
+    exclude_dirs = ["exclude_this_dir"]
+    layers = []
+
+    with patch("os.walk") as mock_walk, patch.object(config_instance, 'save_config') as mock_save:
+        mock_walk.return_value = [
+            ("/repo/exclude_this_dir", [], ["lambda_handler.py"]),
+            ("/repo/include_this_dir", [], ["lambda_handler.py"]),
+        ]
+
+        config_instance.config_repo(layers, exclude_dirs)
+
+        lambdas = config_instance.config_data["lambdas"]
+        assert "exclude_this_dir" not in lambdas
+        assert "include_this_dir" in lambdas
+        mock_save.assert_called_once()
+
+
+def test_config_repo_exclude_layers(config_instance):
+    exclude_dirs = []
+    layers = ["layer_to_exclude"]
+
+    with patch("os.walk") as mock_walk, patch.object(config_instance, 'save_config') as mock_save:
+        mock_walk.return_value = [
+            ("/repo/layer_to_exclude", [], ["lambda_handler.py"]),
+            ("/repo/include_this_dir", [], ["lambda_handler.py"]),
+        ]
+
+        config_instance.config_repo(layers, exclude_dirs)
+
+        lambdas = config_instance.config_data["lambdas"]
+        assert "layer_to_exclude" not in lambdas
+        assert "include_this_dir" in lambdas
+        mock_save.assert_called_once()

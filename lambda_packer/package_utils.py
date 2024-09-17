@@ -171,9 +171,6 @@ def package_docker(lambda_name, config_handler, keep_dockerfile):
         f"Building Docker image for {lambda_name} with tag {image_tag} and architecture {target_arch}..."
     )
 
-    #click.echo(f"Build context path: {lambda_path}")
-
-    # Prepare layer files and dependencies for the Docker image
     layer_dirs_to_remove = []  # Keep track of the layer directories to remove later
 
     for layer_name in config_handler.get_lambda_layers(lambda_name):
@@ -214,6 +211,7 @@ def package_docker(lambda_name, config_handler, keep_dockerfile):
             path=lambda_path,
             tag=image_tag,
             platform=target_arch,
+            timeout=600,
             rm=True,
             decode=True,
             nocache=True,

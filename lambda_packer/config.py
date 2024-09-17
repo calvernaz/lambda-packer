@@ -113,12 +113,19 @@ class Config:
             fg="green",
         )
 
-    def config_repo(self, layers):
+    def config_repo(self, layers=[], exclude_dirs=[]):
         """Scan the entire monorepo and add all detected lambdas to package_config.yaml."""
+
+        exclude_dirs.extend(layers)
+
         lambdas = self.config_data.get("lambdas", {})
         repo = os.path.dirname(self.config_path)
         # Scan for lambdas
         for root, dirs, files in os.walk(repo):
+
+            if any(exclude_dir in root for exclude_dir in exclude_dirs):
+                continue
+
             # TODO: detect the lambda file if more than one throw an error
             if "lambda_handler.py" in files or "Dockerfile" in files:
                 lambda_name = os.path.basename(root)

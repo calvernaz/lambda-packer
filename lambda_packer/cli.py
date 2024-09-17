@@ -118,8 +118,12 @@ def init(parent_dir, lambda_name):
     help="Python runtime version for the lambda",
 )
 @click.option("--layers", multiple=True, default=[], help="Layers to add to the lambda")
-def generate_config(repo, lambda_name, runtime, layers):
+@click.option("--exclude-dirs", multiple=True, default=[], help="Directories to exclude")
+def generate_config(repo, lambda_name, runtime, layers, exclude_dirs):
     """Generate a package_config.yaml from an existing monorepo."""
+
+    layers = list(layers)
+    exclude_dirs = list(exclude_dirs)
 
     config_path = config_file_path(repo)
     config_handler = Config(config_path)
@@ -129,7 +133,7 @@ def generate_config(repo, lambda_name, runtime, layers):
         config_handler.config_lambda(lambda_name, layers, runtime)
     else:
         # Configure the entire monorepo
-        config_handler.config_repo(layers)
+        config_handler.config_repo(layers, exclude_dirs)
 
 
 @main.command()
