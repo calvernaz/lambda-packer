@@ -1,4 +1,6 @@
 import os
+import shutil
+
 import yaml
 
 from lambda_packer.config import Config
@@ -45,3 +47,9 @@ def config_file_path(repo: str = os.getcwd()) -> str:
 
 def dist_dir_path(repo: str = os.getcwd()) -> str:
     return os.path.join(os.path.dirname(config_file_path(repo)), DIST_DIR)
+
+
+def ensure_directory_exists(path: str):
+    if os.path.exists(path):
+        shutil.rmtree(path)
+    os.makedirs(path, exist_ok=True)

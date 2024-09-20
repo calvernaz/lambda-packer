@@ -1,8 +1,8 @@
-import os
-import shutil
 import subprocess
-import pytest
 from unittest import mock
+
+import pytest
+
 from lambda_packer.package_utils import package_layer_internal
 
 
@@ -40,7 +40,7 @@ def mock_os_functions():
             "test_layer",
             "3.8",
             [False, True, False],
-            "Installing dependencies for test_layer from test_layer/requirements.txt...",
+            "Installing dependencies from test_layer/requirements.txt...",
             "Lambda layer test_layer packaged as dist/test_layer.zip.",
         ),
         (
@@ -54,7 +54,7 @@ def mock_os_functions():
             "existing_layer",
             "3.7",
             [True, True, False],
-            "Installing dependencies for existing_layer from existing_layer/requirements.txt...",
+            "Installing dependencies from existing_layer/requirements.txt...",
             "Lambda layer existing_layer packaged as dist/existing_layer.zip.",
         ),
     ],

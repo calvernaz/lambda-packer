@@ -118,7 +118,9 @@ def init(parent_dir, lambda_name):
     help="Python runtime version for the lambda",
 )
 @click.option("--layers", multiple=True, default=[], help="Layers to add to the lambda")
-@click.option("--exclude-dirs", multiple=True, default=[], help="Directories to exclude")
+@click.option(
+    "--exclude-dirs", multiple=True, default=[], help="Directories to exclude"
+)
 def generate_config(repo, lambda_name, runtime, layers, exclude_dirs):
     """Generate a package_config.yaml from an existing monorepo."""
 
@@ -172,17 +174,20 @@ def package_layer(layer_name):
 
 @main.command("lambda")
 @click.argument("lambda_name")
+@click.option("--layers", multiple=True, help="Layers to add to the lambda")
 @click.option(
     "--runtime",
     default=Config.default_python_runtime,
     help=f"Python runtime version for the lambda (default: {Config.default_python_runtime})",
 )
 @click.option(
-    "--type", default="zip", help="Packaging type for the lambda (zip or docker)"
+    "--type", multiple=True, help="Packaging type for the lambda (zip or docker)"
 )
-@click.option("--layers", multiple=True, help="Layers to add to the lambda")
+@click.option(
+    "--platforms", multiple=True, help="Target platform for the lambda (x86_64, arm64)"
+)
 @click.pass_context
-def add_lambda(ctx, lambda_name, runtime, type, layers):
+def add_lambda(ctx, lambda_name, runtime, type, layers, platforms):
     """Add a new lambda to the existing monorepo and update package_config.yaml."""
 
     # Set up the basic paths
@@ -200,13 +205,9 @@ def add_lambda(ctx, lambda_name, runtime, type, layers):
     os.makedirs(lambda_dir)
 
     # Create a basic lambda_handler.py
-    lambda_handler_path = os.path.join(lambda_dir, "lambda_handler.py")
-    lambda_handler_content = f"""def lambda_handler(event, context):
-    return {{
-        'statusCode': 200,
-        'body': 'Hello from {lambda_name}!'
-    }}
-"""
+    lambda_handler_path = os.path.join(lambda_dir, Config.default_lambda_filename)
+    lambda_handler_content = generate_lambda_handler(lambda_name)
+
     with open(lambda_handler_path, "w") as f:
         f.write(lambda_handler_content)
 
@@ -215,7 +216,14 @@ def add_lambda(ctx, lambda_name, runtime, type, layers):
     with open(requirements_path, "w") as f:
         f.write("# Add your lambda dependencies here\n")
 
-    config.config_lambda(lambda_name, layers, runtime, type)
+    if not type:
+        type = [config.default_package_type]
+    if not platforms:
+        platforms = config.default_platforms
+
+    config.config_lambda(
+        lambda_name, list(layers), runtime, list(type), list(platforms)
+    )
 
 
 if __name__ == "__main__":
