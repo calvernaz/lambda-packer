@@ -32,6 +32,7 @@ class Config:
     default_platforms = ["linux/arm64", "linux/x86_64"]
     package_config_yaml = "package_config.yaml"
     default_lambda_filename = "lambda.py"
+    default_requirements_filename = "requirements.txt"
 
     def __init__(self, config_path):
         self.config_path = config_path

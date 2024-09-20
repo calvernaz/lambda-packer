@@ -219,20 +219,20 @@ def test_package_docker_command(mock_docker, setup_test_directory):
     runner = CliRunner()
 
     # Initialize the project and add a docker-type lambda
-    runner.invoke(init, ["test_project", "--lambda-name", "lambda_example"])
+    runner.invoke(init, ["test_project", "--lambda-name", "initial_lambda"])
     os.chdir("test_project")
 
-    runner.invoke(add_lambda, ["lambda_docker", "--runtime", "3.9", "--type", "docker"])
+    runner.invoke(add_lambda, ["second_lambda", "--runtime", "3.9", "--type", "docker"])
 
     # Simulate adding lambda handler and requirements.txt
-    os.makedirs("lambda_docker", exist_ok=True)
-    with open("lambda_docker/lambda_handler.py", "w") as f:
+    os.makedirs("second_lambda", exist_ok=True)
+    with open("second_lambda/lambda_handler.py", "w") as f:
         f.write(
             'def lambda_handler(event, context):\n    return {"statusCode": 200, "body": "Hello from Docker"}'
         )
 
     # Manually create a Dockerfile
-    with open("lambda_docker/Dockerfile", "w") as dockerfile:
+    with open("second_lambda/Dockerfile", "w") as dockerfile:
         dockerfile.write(
             f"""
         FROM public.ecr.aws/lambda/python:3.9
@@ -245,17 +245,17 @@ def test_package_docker_command(mock_docker, setup_test_directory):
         )
 
     # Now invoke the package command
-    result = runner.invoke(package, ["lambda_docker"])
+    result = runner.invoke(package, ["second_lambda"])
 
     # Check if Dockerfile exists and if the docker build was initiated
-    assert os.path.exists("lambda_docker/Dockerfile")
+    assert os.path.exists("second_lambda/Dockerfile")
 
     # Verify package_config.yaml content
     with open("package_config.yaml", "r") as config_file:
         config_data = yaml.safe_load(config_file)
-        assert "lambda_docker" in config_data["lambdas"]
-        assert config_data["lambdas"]["lambda_docker"]["runtime"] == "3.9"
-        assert config_data["lambdas"]["lambda_docker"]["type"] == ["docker"]
+        assert "second_lambda" in config_data["lambdas"]
+        assert config_data["lambdas"]["second_lambda"]["runtime"] == "3.9"
+        assert config_data["lambdas"]["second_lambda"]["type"] == ["docker"]
     assert result.exit_code == 0
 
 

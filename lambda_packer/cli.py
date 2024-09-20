@@ -15,6 +15,8 @@ from lambda_packer.file_utils import (
     dist_dir_path,
     abs_to_rel_path,
     COMMON_DIR,
+    create_directory,
+    write_to_file,
 )
 from lambda_packer.template_utils import (
     generate_package_config,
@@ -88,23 +90,13 @@ def init(parent_dir, lambda_name):
         )
 
     # Create parent, common, lambda, and dist directories
-    os.makedirs(common_dir, exist_ok=False)
-    os.makedirs(lambda_dir, exist_ok=False)
-    os.makedirs(dist_dir_path(parent_path), exist_ok=False)
+    create_directory(common_dir)
+    create_directory(lambda_dir)
+    create_directory(dist_dir_path(parent_path))
 
-    # Create a basic package_config.yaml file inside the parent directory
-    with open(config_file_path(parent_path), "w") as f:
-        f.write(generate_package_config(lambda_name))
-
-    # Create a basic lambda_handler.py in the lambda directory
-    lambda_handler_path = os.path.join(lambda_dir, "lambda_handler.py")
-    with open(lambda_handler_path, "w") as f:
-        f.write(generate_lambda_handler(lambda_name))
-
-    # Create a basic requirements.txt in the lambda directory
-    requirements_path = os.path.join(lambda_dir, "requirements.txt")
-    with open(requirements_path, "w") as f:
-        f.write("# Add your lambda dependencies here\n")
+    write_to_file(config_file_path(parent_path), generate_package_config(lambda_name))
+    write_to_file(os.path.join(lambda_dir, Config.default_lambda_filename), generate_lambda_handler(lambda_name))
+    write_to_file(os.path.join(lambda_dir, Config.default_requirements_filename), "# Add your lambda dependencies here\n")
 
     click.secho("done", fg="green")
 
@@ -202,19 +194,10 @@ def add_lambda(ctx, lambda_name, runtime, type, layers, platforms):
         ctx.exit(1)
 
     # Create the lambda directory and necessary files
-    os.makedirs(lambda_dir)
+    create_directory(lambda_dir)
 
-    # Create a basic lambda_handler.py
-    lambda_handler_path = os.path.join(lambda_dir, Config.default_lambda_filename)
-    lambda_handler_content = generate_lambda_handler(lambda_name)
-
-    with open(lambda_handler_path, "w") as f:
-        f.write(lambda_handler_content)
-
-    # Create a basic requirements.txt
-    requirements_path = os.path.join(lambda_dir, "requirements.txt")
-    with open(requirements_path, "w") as f:
-        f.write("# Add your lambda dependencies here\n")
+    write_to_file(os.path.join(lambda_dir, Config.default_lambda_filename), generate_lambda_handler(lambda_name))
+    write_to_file(os.path.join(lambda_dir, Config.default_requirements_filename), "# Add your lambda dependencies here\n")
 
     if not type:
         type = [config.default_package_type]

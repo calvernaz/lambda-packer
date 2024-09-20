@@ -32,6 +32,18 @@ def file_exists(file_path):
     return os.path.exists(file_path)
 
 
+def create_directory(path, exist_ok=True):
+    try:
+        os.makedirs(path, exist_ok=exist_ok)
+    except FileExistsError as e:
+        raise FileExistsError(f"Directory '{path}' already exists.") from e
+
+
+def write_to_file(path, content):
+    with open(path, "w") as f:
+        f.write(content)
+
+
 def abs_to_rel_path(abs_path):
     return os.path.relpath(abs_path)
 
