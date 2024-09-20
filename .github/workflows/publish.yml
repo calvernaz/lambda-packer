@@ -12,10 +12,10 @@ jobs:
 
     steps:
       - name: Checkout code
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
       - name: Set up Python
-        uses: actions/setup-python@v4
+        uses: actions/setup-python@v5
         with:
           python-version: '3.10'
 
@@ -25,22 +25,17 @@ jobs:
           pip install .[dev]
 
       - name: Run tests
-        run: |
-          pytest
-        continue-on-error: false
+        run: pytest
 
       - name: Install build tools
-        if: success()  # This runs only if tests succeed
         run: |
-          pip install setuptools wheel
+          pip install build
 
       - name: Build the package
-        if: success()
         run: |
-          python setup.py sdist bdist_wheel
+          python -m build
 
       - name: Publish to PyPI
-        if: success()
         env:
           TWINE_USERNAME: __token__
           TWINE_PASSWORD: ${{ secrets.PYPI_API_TOKEN }}
@@ -48,23 +43,26 @@ jobs:
           twine upload dist/*
 
       - name: Log in to Docker Hub
-        if: success()
         uses: docker/login-action@v2
         with:
           username: ${{ secrets.DOCKER_USERNAME }}
           password: ${{ secrets.DOCKER_PASSWORD }}
+
+      - name: Create Docker Buildx instance
+        run: docker buildx create --use
 
       - name: Extract tag name
         id: extract_tag
         run: echo "TAG_NAME=${GITHUB_REF#refs/tags/}" >> $GITHUB_ENV
 
       - name: Build and push Docker image for amd64
-        if: success()
+        env:
+          TAG_NAME: ${{ env.TAG_NAME }}
         run: |
-          docker buildx create --use
           docker buildx build --platform linux/amd64 -t ${{ secrets.DOCKER_USERNAME }}/lambda-packer:amd64-${{ env.TAG_NAME }} --push .
 
       - name: Build and push Docker image for arm64
-        if: success()
+        env:
+          TAG_NAME: ${{ env.TAG_NAME }}
         run: |
           docker buildx build --platform linux/arm64 -t ${{ secrets.DOCKER_USERNAME }}/lambda-packer:arm64-${{ env.TAG_NAME }} --push .
