@@ -7,9 +7,14 @@ import click
 
 from lambda_packer.config import Config
 from lambda_packer.docker_utils import check_docker_daemon, docker_client
-from lambda_packer.file_utils import file_exists, abs_to_rel_path
+from lambda_packer.file_utils import (
+    file_exists,
+    abs_to_rel_path,
+    ensure_directory_exists,
+)
 
-DOCKERFILE_TEMPLATE = Template("""
+DOCKERFILE_TEMPLATE = Template(
+    """
 FROM public.ecr.aws/lambda/python:$runtime
 
 COPY . $${LAMBDA_TASK_ROOT}/
@@ -25,7 +30,8 @@ $layer_dependencies
 
 # Specify the Lambda handler
 CMD ["$file_base_name.$function_name"]
-""")
+"""
+)
 
 
 def package_layer_internal(layer_name, runtime=Config.default_python_runtime):
@@ -44,38 +50,18 @@ def package_layer_internal(layer_name, runtime=Config.default_python_runtime):
         layer_temp_dir, f"python/lib/{python_runtime}/site-packages"
     )
 
-    # Ensure temp directory and structure exist
-    if os.path.exists(layer_temp_dir):
-        shutil.rmtree(layer_temp_dir)  # Clean any previous temp files
-    os.makedirs(python_lib_dir, exist_ok=True)
+    ensure_directory_exists(python_lib_dir)
+    # Install dependencies into the site-packages directory if requirements.txt exists
+    install_dependencies(requirements_path, python_lib_dir)
 
-    # Step 1: Install dependencies into the site-packages directory if requirements.txt exists
-    if os.path.exists(requirements_path):
-        click.echo(
-            f"Installing dependencies for {layer_name} from {abs_to_rel_path(requirements_path)}..."
-        )
-        subprocess.check_call(
-            [
-                os.sys.executable,
-                "-m",
-                "pip",
-                "install",
-                "-r",
-                requirements_path,
-                "-t",
-                python_lib_dir,
-            ]
-        )
-
-    # Step 2: Copy the entire layer directory to the site-packages
+    # Copy the entire layer directory to the site-packages
     layer_dest = os.path.join(python_lib_dir, layer_name)
     shutil.copytree(common_path, layer_dest)
 
-    # Step 3: Ensure the 'dist' directory exists
-    if not os.path.exists(layer_output_dir):
-        os.makedirs(layer_output_dir)
+    # Ensure the 'dist' directory exists
+    ensure_directory_exists(layer_output_dir)
 
-    # Step 4: Zip the temp_layer directory to create the layer package
+    # Zip the temp_layer directory to create the layer package
     shutil.make_archive(output_file.replace(".zip", ""), "zip", layer_temp_dir)
 
     # Clean up temporary directory
@@ -94,8 +80,8 @@ def package_lambda(lambda_name, config_handler, keep_dockerfile):
         click.echo(f"Lambda {lambda_name} not found in config.")
         return
 
-    lambda_type = lambda_config.get("type", "zip")
-    if lambda_type == "docker":
+    lambda_type = lambda_config.get("type")
+    if "docker" in lambda_type:
         package_docker(lambda_name, config_handler, keep_dockerfile)
     else:
         package_zip(lambda_name, config_handler)
@@ -119,21 +105,21 @@ def package_docker(lambda_name, config_handler, keep_dockerfile):
     if not check_docker_daemon():
         return
 
-    lambda_config = config_handler.get_lambda_config(lambda_name)
     lambda_path = os.path.join(os.getcwd(), lambda_name)
+    lambda_config = config_handler.get_lambda_config(lambda_name)
     layers = config_handler.get_lambda_layers(lambda_name)
+    target_platforms = config_handler.get_lambda_platforms(lambda_name)
 
     dockerfile_path = os.path.join(lambda_path, "Dockerfile")
     image_tag = lambda_config.get("image", f"{lambda_name}:latest")
     lambda_runtime = lambda_config.get("runtime", Config.default_python_runtime)
-    target_arch = lambda_config.get("arch", Config.default_arch)
-    file_name = lambda_config.get("file_name", "lambda_handler.py")
+    file_name = lambda_config.get("file_name", Config.default_lambda_filename)
     function_name = lambda_config.get("function_name", "lambda_handler")
 
     file_base_name = os.path.splitext(file_name)[0]
     dockerfile_generated = False
 
-    # Step 1: Generate a Dockerfile if none exists
+    # Generate a Dockerfile if none exists
     if not file_exists(dockerfile_path):
         click.echo(
             f"No Dockerfile found for {lambda_name}. Generating default Dockerfile..."
@@ -162,18 +148,15 @@ def package_docker(lambda_name, config_handler, keep_dockerfile):
             with open(dockerfile_path, "w") as f:
                 f.write(dockerfile_content)
             click.secho(
-                f"Dockerfile successfully generated at {abs_to_rel_path(dockerfile_path)}", fg="green"
+                f"Dockerfile successfully generated at {abs_to_rel_path(dockerfile_path)}",
+                fg="green",
             )
         except Exception as e:
             click.secho(f"Failed to generate Dockerfile: {str(e)}", fg="red")
 
-    click.echo(
-        f"Building Docker image for {lambda_name} with tag {image_tag} and architecture {target_arch}..."
-    )
+    layer_dirs_to_remove = []
 
-    layer_dirs_to_remove = []  # Keep track of the layer directories to remove later
-
-    for layer_name in config_handler.get_lambda_layers(lambda_name):
+    for layer_name in layers:
         layer_path = os.path.join(
             os.path.dirname(config_handler.config_path), layer_name
         )
@@ -185,44 +168,35 @@ def package_docker(lambda_name, config_handler, keep_dockerfile):
 
         # Copy the layer code into the Docker image directory (e.g., into /var/task/{layer_name})
         layer_dest = os.path.join(lambda_path, layer_name)
+        # Remove the existing layer directory if it exists
+        if os.path.exists(layer_dest):
+            shutil.rmtree(layer_dest)
+
         click.echo(f"Copying layer '{layer_name}' to '{abs_to_rel_path(layer_dest)}'")
         shutil.copytree(layer_path, layer_dest)
         layer_dirs_to_remove.append(layer_dest)  # Track the directory to remove later
 
-        # Install dependencies for the layer if requirements.txt is present
-        if os.path.exists(requirements_path):
-            click.echo(f"Installing dependencies for layer {layer_name}...")
-            subprocess.check_call(
-                [
-                    os.sys.executable,
-                    "-m",
-                    "pip",
-                    "install",
-                    "-r",
-                    requirements_path,
-                    "-t",
-                    layer_dest,
-                ]
-            )
+        install_dependencies(requirements_path, layer_dest)
 
     # Build the Docker image
     try:
-        build_output = docker_client().api.build(
-            path=lambda_path,
-            tag=image_tag,
-            platform=target_arch,
-            timeout=600,
-            rm=True,
-            decode=True,
-            nocache=True,
-        )
+        for target_platform in target_platforms:
+            build_output = docker_client().api.build(
+                path=lambda_path,
+                tag=image_tag,
+                platform=target_platform,
+                timeout=600,
+                rm=True,
+                decode=True,
+                nocache=True,
+            )
 
-        for log in build_output:
-            if "stream" in log:
-                click.echo(log["stream"].strip())
-            elif "error" in log:
-                click.echo(f"Error: {log['error']}")
-                raise Exception(log["error"])
+            for log in build_output:
+                if "stream" in log:
+                    click.echo(log["stream"].strip())
+                elif "error" in log:
+                    click.echo(f"Error: {log['error']}")
+                    raise Exception(log["error"])
     except Exception as e:
         click.echo(f"Error during Docker build: {str(e)}")
         raise
@@ -232,9 +206,9 @@ def package_docker(lambda_name, config_handler, keep_dockerfile):
             shutil.rmtree(layer_dir)
 
         if (
-                dockerfile_generated
-                and not keep_dockerfile
-                and os.path.exists(dockerfile_path)
+            dockerfile_generated
+            and not keep_dockerfile
+            and os.path.exists(dockerfile_path)
         ):
             click.echo(f"Removing generated Dockerfile for {lambda_name}")
             os.remove(dockerfile_path)
@@ -252,18 +226,40 @@ def package_zip(lambda_name, config_handler):
     output_file = os.path.join(os.getcwd(), "dist", f"{lambda_name}.zip")
 
     # Ensure the 'dist' directory exists
-    if not os.path.exists(os.path.join(os.getcwd(), "dist")):
-        os.makedirs(os.path.join(os.getcwd(), "dist"))
+    ensure_directory_exists(os.path.join(os.getcwd(), "dist"))
+    ensure_directory_exists(build_dir)
 
-    # Ensure the build directory is clean
-    if os.path.exists(build_dir):
-        shutil.rmtree(build_dir)
-    os.makedirs(build_dir)
+    install_dependencies(requirements_path, build_dir)
 
-    # Step 1: Install dependencies into the build directory if requirements.txt exists
+    # Copy lambda source files (excluding requirements.txt) to the build directory
+    for item in os.listdir(lambda_path):
+        if item not in ["build", "requirements.txt"]:
+            s = os.path.join(lambda_path, item)
+            d = os.path.join(build_dir, item)
+            if os.path.isdir(s):
+                shutil.copytree(s, d)
+            else:
+                shutil.copy2(s, d)
+
+    # Create a ZIP file from the build directory
+    shutil.make_archive(output_file.replace(".zip", ""), "zip", build_dir)
+
+    # Clean up the build directory
+    shutil.rmtree(build_dir)
+
+    # Include the layers referenced in the config
+    for layer_name in config_handler.get_lambda_layers(lambda_name):
+        click.echo(f"Packaging layer_name: {layer_name}")
+        runtime = config_handler.get_lambda_runtime(lambda_name)
+        package_layer_internal(layer_name, runtime)
+
+    click.echo(f"Lambda {lambda_name} packaged as {output_file}.")
+
+
+def install_dependencies(requirements_path, target_dir):
     if os.path.exists(requirements_path):
         click.echo(
-            f"Installing dependencies for {lambda_name} from {requirements_path}..."
+            f"Installing dependencies from {abs_to_rel_path(requirements_path)}..."
         )
         subprocess.check_call(
             [
@@ -274,30 +270,6 @@ def package_zip(lambda_name, config_handler):
                 "-r",
                 requirements_path,
                 "-t",
-                build_dir,
+                target_dir,
             ]
         )
-
-    # Step 2: Copy lambda source files (excluding requirements.txt) to the build directory
-    for item in os.listdir(lambda_path):
-        if item not in ["build", "requirements.txt"]:
-            s = os.path.join(lambda_path, item)
-            d = os.path.join(build_dir, item)
-            if os.path.isdir(s):
-                shutil.copytree(s, d)
-            else:
-                shutil.copy2(s, d)
-
-    # Step 3: Create a ZIP file from the build directory
-    shutil.make_archive(output_file.replace(".zip", ""), "zip", build_dir)
-
-    # Step 4: Clean up the build directory
-    shutil.rmtree(build_dir)
-
-    # Include the layers referenced in the config
-    for layer_name in config_handler.get_lambda_layers(lambda_name):
-        click.echo(f"Packaging layer_name: {layer_name}")
-        runtime = config_handler.get_lambda_runtime(lambda_name)
-        package_layer_internal(layer_name, runtime)
-
-    click.echo(f"Lambda {lambda_name} packaged as {output_file}.")

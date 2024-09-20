@@ -2,7 +2,8 @@ def generate_package_config(lambda_name):
     """Generate the content for package_config.yaml."""
     return f"""lambdas:
   {lambda_name}:
-    type: zip
+    type:
+    - zip
     layers:
       - common
 """

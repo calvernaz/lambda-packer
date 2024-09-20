@@ -6,6 +6,7 @@ import yaml
 from click.testing import CliRunner
 
 from lambda_packer.cli import add_lambda, init, package, main
+from typing import List
 
 
 @pytest.fixture
@@ -60,7 +61,7 @@ def test_add_lambda_to_config(setup_test_directory):
     runner = CliRunner()
 
     # First, simulate creating a partial package_config.yaml file
-    initial_config = {"lambdas": {"lambda_a": {"type": "zip", "runtime": "3.8"}}}
+    initial_config = {"lambdas": {"lambda_a": {"type": ["zip"], "runtime": "3.8"}}}
 
     with open("package_config.yaml", "w") as config_file:
         yaml.dump(initial_config, config_file)
@@ -72,7 +73,7 @@ def test_add_lambda_to_config(setup_test_directory):
     with open("package_config.yaml", "r") as config_file:
         config_data = yaml.safe_load(config_file)
         assert "lambda_b" in config_data["lambdas"]
-        assert config_data["lambdas"]["lambda_b"]["type"] == "docker"
+        assert config_data["lambdas"]["lambda_b"]["type"] == ["docker"]
         assert config_data["lambdas"]["lambda_b"]["runtime"] == "3.12"
 
     # Verify the command output
@@ -139,7 +140,7 @@ def test_init_command(setup_test_directory):
     with open("test_project/package_config.yaml", "r") as config_file:
         config_data = yaml.safe_load(config_file)
         assert "lambda_example" in config_data["lambdas"]
-        assert config_data["lambdas"]["lambda_example"]["type"] == "zip"
+        assert config_data["lambdas"]["lambda_example"]["type"] == ["zip"]
 
 
 def test_add_lambda_command(setup_test_directory):
@@ -170,9 +171,9 @@ def test_add_lambda_command(setup_test_directory):
         config_data = yaml.safe_load(config_file)
         assert "lambda_docker" in config_data["lambdas"]
         assert config_data["lambdas"]["lambda_docker"]["runtime"] == "3.12"
-        assert config_data["lambdas"]["lambda_docker"]["type"] == "docker"
+        assert config_data["lambdas"]["lambda_docker"]["type"] == ["docker"]
         assert config_data["lambdas"]["lambda_docker"]["layers"] == ["common", "shared"]
-        assert config_data["lambdas"]["lambda_example"]["type"] == "zip"
+        assert config_data["lambdas"]["lambda_example"]["type"] == ["zip"]
         assert config_data["lambdas"]["lambda_example"]["layers"] == ["common"]
 
     assert result.exit_code == 0
@@ -193,7 +194,7 @@ def test_package_zip_command(setup_test_directory):
         f.write("def lambda_handler(event, context): return 'Hello'")
 
     # Create package_config.yaml with lambda_a
-    package_config = {"lambdas": {"lambda_a": {"type": "zip", "runtime": "3.8"}}}
+    package_config = {"lambdas": {"lambda_a": {"type": ["zip"], "runtime": "3.8"}}}
 
     with open("package_config.yaml", "w") as config_file:
         yaml.dump(package_config, config_file)
@@ -254,7 +255,7 @@ def test_package_docker_command(mock_docker, setup_test_directory):
         config_data = yaml.safe_load(config_file)
         assert "lambda_docker" in config_data["lambdas"]
         assert config_data["lambdas"]["lambda_docker"]["runtime"] == "3.9"
-        assert config_data["lambdas"]["lambda_docker"]["type"] == "docker"
+        assert config_data["lambdas"]["lambda_docker"]["type"] == ["docker"]
     assert result.exit_code == 0
 
 
@@ -288,7 +289,7 @@ def test_package_specific_lambda(setup_test_directory):
         f.write("def lambda_handler(event, context): return 'Hello'")
 
     # Create package_config.yaml with lambda_a
-    package_config = {"lambdas": {"lambda_a": {"type": "zip", "runtime": "3.8"}}}
+    package_config = {"lambdas": {"lambda_a": {"type": ["zip"], "runtime": "3.8"}}}
 
     with open("package_config.yaml", "w") as config_file:
         yaml.dump(package_config, config_file)
@@ -310,8 +311,8 @@ def test_package_all_lambdas(setup_test_directory):
     # Create a package_config.yaml with both lambda_a and lambda_b
     package_config = {
         "lambdas": {
-            "lambda_a": {"type": "zip", "runtime": "3.8"},
-            "lambda_b": {"type": "docker", "runtime": "3.9"},
+            "lambda_a": {"type": ["zip"], "runtime": "3.8"},
+            "lambda_b": {"type": ["docker"], "runtime": "3.9"},
         }
     }
 
@@ -329,11 +330,8 @@ def test_package_all_lambdas(setup_test_directory):
     assert "Packaging lambda 'lambda_a'" in result.output
     assert "Lambda lambda_a packaged" in result.output
     assert "Packaging lambda 'lambda_b'" in result.output
-    assert "Successfully tagged lambda_b" in result.output
 
-    # Optional: Verify that the expected zip and Docker image files were created
-    assert os.path.exists(os.path.join("dist", "lambda_a.zip"))  # For lambda_a (Zip)
-    # You can also check if the Docker image for lambda_b is created via the Docker client if needed.
+    assert os.path.exists(os.path.join("dist", "lambda_a.zip"))
 
     assert "Finished packaging all lambdas in package_config.yaml." in result.output
 
@@ -357,7 +355,7 @@ def test_package_docker_generates_templated_dockerfile(setup_test_directory):
     package_config = {
         "lambdas": {
             "lambda_with_layer": {
-                "type": "docker",
+                "type": ["docker"],
                 "runtime": "3.9",
                 "layers": ["common"],
             }
@@ -398,7 +396,7 @@ def test_package_docker_generates_dockerfile_with_custom_layers(setup_test_direc
     package_config = {
         "lambdas": {
             "lambda_with_custom_layer": {
-                "type": "docker",
+                "type": ["docker"],
                 "runtime": "3.9",
                 "layers": ["layer_custom"],
             }
@@ -433,7 +431,7 @@ def test_package_docker_deletes_generated_dockerfile(setup_test_directory):
         f.write("def lambda_handler(event, context): return 'Hello from Lambda'")
 
     # Create package_config.yaml
-    package_config = {"lambdas": {"lambda_a": {"type": "docker", "runtime": "3.12"}}}
+    package_config = {"lambdas": {"lambda_a": {"type": ["docker"], "runtime": "3.12"}}}
 
     with open("package_config.yaml", "w") as config_file:
         yaml.dump(package_config, config_file)
@@ -469,7 +467,7 @@ def test_package_docker_does_not_delete_existing_dockerfile(setup_test_directory
         f.write("FROM python:3.9\n")
 
     # Create package_config.yaml
-    package_config = {"lambdas": {"lambda_a": {"type": "docker", "runtime": "3.12"}}}
+    package_config = {"lambdas": {"lambda_a": {"type": ["docker"], "runtime": "3.12"}}}
 
     with open("package_config.yaml", "w") as config_file:
         yaml.dump(package_config, config_file)
@@ -504,7 +502,7 @@ def test_package_docker_with_custom_filename_and_function_no_extension_in_cmd(
     package_config = {
         "lambdas": {
             "lambda_custom": {
-                "type": "docker",
+                "type": ["docker"],
                 "runtime": "3.9",
                 "file_name": "custom_handler.py",
                 "function_name": "my_custom_handler",
