@@ -395,7 +395,7 @@ def test_package_docker_generates_dockerfile_with_custom_layers(setup_test_direc
         "lambdas": {
             "lambda_with_custom_layer": {
                 "type": ["docker"],
-                "runtime": "3.9",
+                "runtime": "3.12",
                 "layers": ["layer_custom"],
             }
         }
