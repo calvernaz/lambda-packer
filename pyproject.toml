@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "lambda_packer"
-version='0.1.37'
+version='0.1.38'
 description = "A tool to package Python AWS Lambda functions with zips, Docker containers, and layers."
 readme = "README.md"
 requires-python = ">=3.8"
