@@ -6,7 +6,7 @@ with open("README.md", "r") as fh:
 
 setup(
     name="lambda_packer",
-    version='0.1.19',
+    version='0.1.20',
     packages=find_packages(),
     install_requires=[
         "Click",
