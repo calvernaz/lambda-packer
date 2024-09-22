@@ -67,4 +67,4 @@ jobs:
         with:
           platforms: linux/amd64,linux/arm64
           push: true
-          tags: calvernaz/lambda-packer:${{ env.TAG_NAME }}
+          tags: cesaralvernaz/lambda-packer:${{ env.TAG_NAME }}
