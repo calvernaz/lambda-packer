@@ -174,7 +174,7 @@ def package_docker(lambda_name, config_handler, keep_dockerfile):
 
         click.echo(f"Copying layer '{layer_name}' to '{abs_to_rel_path(layer_dest)}'")
         shutil.copytree(layer_path, layer_dest)
-        layer_dirs_to_remove.append(layer_dest)  # Track the directory to remove later
+        layer_dirs_to_remove.append(layer_dest)
 
         install_dependencies(requirements_path, layer_dest)
 
