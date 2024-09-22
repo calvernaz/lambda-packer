@@ -15,20 +15,22 @@ from lambda_packer.file_utils import (
 )
 
 DOCKERFILE_TEMPLATE = Template(
-    """
+"""
 FROM public.ecr.aws/lambda/python:$runtime
 
 # Copy the Lambda function code into the container
 COPY . $${LAMBDA_TASK_ROOT}/
 
-RUN if [ -f "requirements.txt" ]; then \
-        echo "requirements.txt found. Installing dependencies..."; \
-        pip install --no-cache-dir -r requirements.txt -t $${LAMBDA_TASK_ROOT} || (echo "pip install failed" && exit 1); \
-    else \
-        echo "Warning: No requirements.txt found. Skipping dependency installation."; \
-    fi
+# Debugging step: List files to ensure `requirements.txt` is present
+RUN ls -al $${LAMBDA_TASK_ROOT}/
 
-CMD ["$file_base_name.$function_name"]
+# Install dependencies for the Lambda function if `requirements.txt` is present
+RUN if [ -f $${LAMBDA_TASK_ROOT}/requirements.txt ]; then \
+     echo "requirements.txt found. Installing dependencies..."; \
+     pip install --no-cache-dir -r $${LAMBDA_TASK_ROOT}/requirements.txt -t $${LAMBDA_TASK_ROOT}; \
+ else \
+     echo "Warning: No requirements.txt found in $${LAMBDA_TASK_ROOT}. Skipping dependency installation."; \
+ fi
 
 """
 )
