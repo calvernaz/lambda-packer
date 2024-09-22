@@ -355,7 +355,7 @@ def test_package_docker_generates_templated_dockerfile(setup_test_directory):
                 "type": ["docker"],
                 "runtime": "3.12",
                 "layers": ["common"],
-                "platform": ["linux/amd64"]
+                "platforms": ["linux/amd64"]
             }
         }
     }
@@ -392,7 +392,7 @@ def test_package_docker_generates_dockerfile_with_custom_layers(setup_test_direc
                 "type": ["docker"],
                 "runtime": "3.12",
                 "layers": ["layer_custom"],
-                "platform": ["linux/amd64"]
+                "platforms": ["linux/amd64"]
             }
         }
     }
@@ -430,7 +430,7 @@ def test_package_docker_deletes_generated_dockerfile(setup_test_directory):
             "lambda_a": {
                 "type": ["docker"],
                 "runtime": "3.12",
-                "platform": ["linux/amd64"]
+                "platforms": ["linux/amd64"]
             }
         }
     }
@@ -512,7 +512,7 @@ def test_package_docker_with_custom_filename_and_function_no_extension_in_cmd(
                 "file_name": "custom_handler.py",
                 "function_name": "my_custom_handler",
                 "layers": [],
-                "platform": ["linux/amd64"]
+                "platforms": ["linux/amd64"]
             }
         }
     }
