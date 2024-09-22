@@ -340,21 +340,15 @@ def test_package_docker_generates_templated_dockerfile(setup_test_directory):
     """Test that lambda-packer generates a Dockerfile using a template."""
     runner = CliRunner()
 
-    # Simulate lambda_with_layer
     lambda_with_layer_path = os.path.join(setup_test_directory, "lambda_with_layer")
     if not os.path.exists(lambda_with_layer_path):
         os.makedirs(lambda_with_layer_path)
 
-    # Simulate Lambda function code
     with open(os.path.join(lambda_with_layer_path, "lambda_handler.py"), "w") as f:
         f.write(
             "def lambda_handler(event, context): return 'Hello from Lambda with Layer'"
         )
 
-    with open(os.path.join(lambda_with_layer_path, "requirements.txt"), "w") as f:
-        f.write("requests\n")
-
-    # Create package_config.yaml with one lambda that has a layer
     package_config = {
         "lambdas": {
             "lambda_with_layer": {
@@ -369,7 +363,7 @@ def test_package_docker_generates_templated_dockerfile(setup_test_directory):
         yaml.dump(package_config, config_file)
 
     # Run the package command for the lambda
-    result = runner.invoke(package, ["lambda_with_layer"], catch_exceptions=False)
+    result = runner.invoke(main, ["package", "lambda_with_layer"])
     print(f"Command output:\n{result.output}")
     assert result.exit_code == 0, f"Command failed with exit code {result.output}"
 
@@ -382,18 +376,15 @@ def test_package_docker_generates_dockerfile_with_custom_layers(setup_test_direc
     """Test that lambda-packer generates a Dockerfile with custom layers."""
     runner = CliRunner()
 
-    # Simulate a Lambda with custom layer
-    lambda_with_layer_path = os.path.join(
-        setup_test_directory, "lambda_with_custom_layer"
-    )
+    lambda_with_layer_path = os.path.join(setup_test_directory, "lambda_with_custom_layer")
     if not os.path.exists(lambda_with_layer_path):
         os.makedirs(lambda_with_layer_path)
+
     with open(os.path.join(lambda_with_layer_path, "lambda_handler.py"), "w") as f:
         f.write(
             "def lambda_handler(event, context): return 'Hello from Lambda with Custom Layer'"
         )
 
-    # Create package_config.yaml with custom layer
     package_config = {
         "lambdas": {
             "lambda_with_custom_layer": {
