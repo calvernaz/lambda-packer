@@ -18,16 +18,18 @@ DOCKERFILE_TEMPLATE = Template(
     """
 FROM public.ecr.aws/lambda/python:$runtime
 
+# Copy the Lambda function code into the container
 COPY . $${LAMBDA_TASK_ROOT}/
 
-# Install dependencies for the Lambda function if requirements.txt is present
-RUN if [ -f "requirements.txt" ]; then echo "requirements.txt found"; fi
-RUN if [ -f "requirements.txt" ]; then pip install --no-cache-dir -r requirements.txt -t $${LAMBDA_TASK_ROOT}; fi
+RUN if [ -f "requirements.txt" ]; then \
+        echo "requirements.txt found. Installing dependencies..."; \
+        pip install --no-cache-dir -r requirements.txt -t $${LAMBDA_TASK_ROOT} || (echo "pip install failed" && exit 1); \
+    else \
+        echo "Warning: No requirements.txt found. Skipping dependency installation."; \
+    fi
 
-$layer_dependencies
-
-# Specify the Lambda handler
 CMD ["$file_base_name.$function_name"]
+
 """
 )
 
