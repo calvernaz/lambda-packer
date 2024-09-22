@@ -388,7 +388,7 @@ def test_config_repo_exclude_layers(config_instance):
         (
             "invalid_platform",
             [
-                f"Invalid platforms: invalid_platform. Supported platforms are: {', '.join(Config.default_platforms)}"
+                f"Invalid platforms: invalid_platform. Supported platforms are: {', '.join(Config.valid_platforms)}"
             ],
         ),
     ],
