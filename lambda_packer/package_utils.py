@@ -14,7 +14,7 @@ from lambda_packer.file_utils import (
 )
 
 DOCKERFILE_TEMPLATE = Template(
-"""
+    """
 FROM public.ecr.aws/lambda/python:$runtime
 
 COPY . $${LAMBDA_TASK_ROOT}/
@@ -204,9 +204,9 @@ def package_docker(lambda_name, config_handler, keep_dockerfile):
             shutil.rmtree(layer_dir)
 
         if (
-            dockerfile_generated
-            and not keep_dockerfile
-            and os.path.exists(dockerfile_path)
+                dockerfile_generated
+                and not keep_dockerfile
+                and os.path.exists(dockerfile_path)
         ):
             click.echo(f"Removing generated Dockerfile for {lambda_name}")
             os.remove(dockerfile_path)
