@@ -496,6 +496,9 @@ def test_package_docker_with_custom_filename_and_function_no_extension_in_cmd(
             "def my_custom_handler(event, context): return 'Hello from custom Lambda'"
         )
 
+    with open(os.path.join(lambda_path, "requirements.txt"), "w") as f:
+        f.write("requests\n")
+
     # Create package_config.yaml
     package_config = {
         "lambdas": {
