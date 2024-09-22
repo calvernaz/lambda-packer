@@ -24,7 +24,7 @@ RUN if [ -f "requirements.txt" ]; then \\
         pip install --no-cache-dir -r requirements.txt -t $${LAMBDA_TASK_ROOT}; \\
     else \\
         echo "Warning: No requirements.txt found. Skipping dependency installation."; \\
-    fi
+    fi || true
 
 $layer_dependencies
 

@@ -1,4 +1,5 @@
 import os
+import pathlib
 from unittest.mock import patch, MagicMock
 
 import pytest
@@ -365,11 +366,9 @@ def test_package_docker_generates_templated_dockerfile(setup_test_directory):
         yaml.dump(package_config, config_file)
 
     # Run the package command for the lambda
-    result = runner.invoke(
-        package, ["lambda_with_layer"], catch_exceptions=False
-    )
+    result = runner.invoke(package, ["lambda_with_layer"], catch_exceptions=False)
     print(f"Command output:\n{result.output}")
-    assert result.exit_code == 0, f"Command failed with exit code {result.exit_code}"
+    assert result.exit_code == 0, f"Command failed with exit code {result.output}"
 
     # Verify Dockerfile is created
     dockerfile_path = os.path.join(lambda_with_layer_path, "Dockerfile")
@@ -525,8 +524,7 @@ def test_package_docker_with_custom_filename_and_function_no_extension_in_cmd(
     assert os.path.exists(dockerfile_path), f"Dockerfile not found at {dockerfile_path}"
 
     # Check the content of the Dockerfile
-    with open(dockerfile_path) as f:
-        dockerfile_content = f.read()
+    dockerfile_content = pathlib.Path(dockerfile_path).read_text()
     print(f"Dockerfile content:\n{dockerfile_content}")
 
     # Verify the Dockerfile includes the correct file and function name, without .py in CMD

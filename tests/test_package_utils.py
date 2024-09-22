@@ -91,14 +91,14 @@ def test_package_layer_internal_happy_path(
             "test_layer",
             "3.8",
             [False, True, False],
-            subprocess.CalledProcessError(1, 'pip install'),
+            subprocess.CalledProcessError(1, "pip install"),
         ),
         ("empty_layer", "3.9", [False, False, False], None),
         (
             "existing_layer",
             "3.7",
             [True, True, False],
-            subprocess.CalledProcessError(1, 'pip install'),
+            subprocess.CalledProcessError(1, "pip install"),
         ),
     ],
     ids=[

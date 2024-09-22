@@ -345,7 +345,7 @@ def test_config_repo_exclude_dirs(config_instance):
     layers = []
 
     with patch("os.walk") as mock_walk, patch.object(
-        config_instance, 'save_config'
+        config_instance, "save_config"
     ) as mock_save:
         mock_walk.return_value = [
             ("/repo/exclude_this_dir", [], ["lambda_handler.py"]),
@@ -365,7 +365,7 @@ def test_config_repo_exclude_layers(config_instance):
     layers = ["layer_to_exclude"]
 
     with patch("os.walk") as mock_walk, patch.object(
-        config_instance, 'save_config'
+        config_instance, "save_config"
     ) as mock_save:
         mock_walk.return_value = [
             ("/repo/layer_to_exclude", [], ["lambda_handler.py"]),

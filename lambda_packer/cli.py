@@ -95,8 +95,14 @@ def init(parent_dir, lambda_name):
     create_directory(dist_dir_path(parent_path))
 
     write_to_file(config_file_path(parent_path), generate_package_config(lambda_name))
-    write_to_file(os.path.join(lambda_dir, Config.default_lambda_filename), generate_lambda_handler(lambda_name))
-    write_to_file(os.path.join(lambda_dir, Config.default_requirements_filename), "# Add your lambda dependencies here\n")
+    write_to_file(
+        os.path.join(lambda_dir, Config.default_lambda_filename),
+        generate_lambda_handler(lambda_name),
+    )
+    write_to_file(
+        os.path.join(lambda_dir, Config.default_requirements_filename),
+        "# Add your lambda dependencies here\n",
+    )
 
     click.secho("done", fg="green")
 
@@ -196,8 +202,14 @@ def add_lambda(ctx, lambda_name, runtime, type, layers, platforms):
     # Create the lambda directory and necessary files
     create_directory(lambda_dir)
 
-    write_to_file(os.path.join(lambda_dir, Config.default_lambda_filename), generate_lambda_handler(lambda_name))
-    write_to_file(os.path.join(lambda_dir, Config.default_requirements_filename), "# Add your lambda dependencies here\n")
+    write_to_file(
+        os.path.join(lambda_dir, Config.default_lambda_filename),
+        generate_lambda_handler(lambda_name),
+    )
+    write_to_file(
+        os.path.join(lambda_dir, Config.default_requirements_filename),
+        "# Add your lambda dependencies here\n",
+    )
 
     if not type:
         type = [config.default_package_type]
