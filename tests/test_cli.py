@@ -351,6 +351,9 @@ def test_package_docker_generates_templated_dockerfile(setup_test_directory):
             "def lambda_handler(event, context): return 'Hello from Lambda with Layer'"
         )
 
+    with open(os.path.join(lambda_with_layer_path, "requirements.txt"), "w") as f:
+        f.write("requests\n")
+
     # Create package_config.yaml with one lambda that has a layer
     package_config = {
         "lambdas": {
