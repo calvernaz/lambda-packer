@@ -20,7 +20,7 @@ FROM public.ecr.aws/lambda/python:$runtime
 COPY . $${LAMBDA_TASK_ROOT}/
 
 # Install dependencies for the Lambda function if requirements.txt is present
-RUN if [ -f "requirements.txt" ]; then \\
+RUN if [ -f $${LAMBDA_TASK_ROOT}/requirements.txt ]; then \\
         pip install --no-cache-dir -r requirements.txt -t $${LAMBDA_TASK_ROOT}; \\
     else \\
         echo "Warning: No requirements.txt found. Skipping dependency installation."; \\
