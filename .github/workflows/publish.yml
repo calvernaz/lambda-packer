@@ -64,10 +64,4 @@ jobs:
         env:
           TAG_NAME: ${{ env.TAG_NAME }}
         run: |
-          docker buildx build --platform linux/amd64 -t ${{ secrets.DOCKER_USERNAME }}/lambda-packer:amd64-${{ env.TAG_NAME }} --push .
-
-      - name: Build and push Docker image for arm64
-        env:
-          TAG_NAME: ${{ env.TAG_NAME }}
-        run: |
-          docker buildx build --platform linux/arm64 -t ${{ secrets.DOCKER_USERNAME }}/lambda-packer:arm64-${{ env.TAG_NAME }} --push .
+          docker buildx build --platform linux/arm64,linux/amd64 -t ${{ secrets.DOCKER_USERNAME }}/lambda-packer:${{ env.TAG_NAME }} --push .
