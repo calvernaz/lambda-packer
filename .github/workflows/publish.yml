@@ -31,7 +31,7 @@ jobs:
         run: docker pull public.ecr.aws/lambda/python:3.12
 
       - name: Run tests
-        run: pytest
+        run: pytest --log-cli-level=INFO
 
       - name: Install build tools
         run: |

@@ -195,7 +195,6 @@ def package_docker(lambda_name, config_handler, keep_dockerfile):
                 if "stream" in log:
                     click.echo(log["stream"].strip())
                 elif "error" in log:
-                    logging.info(log)
                     click.echo(f"Error: {log['error']}")
                     raise Exception(log["error"])
     except Exception as e:
