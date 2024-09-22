@@ -22,7 +22,8 @@ COPY . $${LAMBDA_TASK_ROOT}/
 
 # Install dependencies for the Lambda function if requirements.txt is present
 RUN if [ -f "requirements.txt" ]; then \\
-        pip install --no-cache-dir -r requirements.txt -t $${LAMBDA_TASK_ROOT} || true; \\
+        echo "requirements.txt found. Installing dependencies..."; \\
+        pip install --no-cache-dir -r requirements.txt -t $${LAMBDA_TASK_ROOT} || (echo "pip install failed" && true); \\
     else \\
         echo "Warning: No requirements.txt found. Skipping dependency installation."; \\
     fi
