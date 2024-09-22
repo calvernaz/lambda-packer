@@ -185,7 +185,6 @@ def package_docker(lambda_name, config_handler, keep_dockerfile):
                 path=lambda_path,
                 tag=image_tag,
                 platform=target_platform,
-                timeout=600,
                 rm=True,
                 decode=True,
                 nocache=True,

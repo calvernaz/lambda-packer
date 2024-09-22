@@ -27,6 +27,9 @@ jobs:
           python -m pip install --upgrade pip
           pip install .[dev]
 
+      - name: Pull Docker image
+        run: docker pull public.ecr.aws/lambda/python:3.12
+
       - name: Run tests
         run: pytest
 

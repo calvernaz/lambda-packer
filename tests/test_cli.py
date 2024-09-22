@@ -6,7 +6,6 @@ import yaml
 from click.testing import CliRunner
 
 from lambda_packer.cli import add_lambda, init, package, main
-from typing import List
 
 
 @pytest.fixture
@@ -356,7 +355,7 @@ def test_package_docker_generates_templated_dockerfile(setup_test_directory):
         "lambdas": {
             "lambda_with_layer": {
                 "type": ["docker"],
-                "runtime": "3.9",
+                "runtime": "3.12",
                 "layers": ["common"],
             }
         }
@@ -367,7 +366,7 @@ def test_package_docker_generates_templated_dockerfile(setup_test_directory):
 
     # Run the package command for the lambda
     result = runner.invoke(
-        main, ["package", "lambda_with_layer"], catch_exceptions=False
+        package, ["lambda_with_layer"], catch_exceptions=False
     )
     print(f"Command output:\n{result.output}")
     assert result.exit_code == 0, f"Command failed with exit code {result.exit_code}"
@@ -437,7 +436,7 @@ def test_package_docker_deletes_generated_dockerfile(setup_test_directory):
         yaml.dump(package_config, config_file)
 
     # Run the package command without --keep-dockerfile
-    result = runner.invoke(main, ["package", "lambda_a"])
+    result = runner.invoke(package, ["lambda_a"])
     assert result.exit_code == 0
     assert not os.path.exists(
         os.path.join(lambda_path, "Dockerfile")
@@ -473,7 +472,7 @@ def test_package_docker_does_not_delete_existing_dockerfile(setup_test_directory
         yaml.dump(package_config, config_file)
 
     # Run the package command
-    result = runner.invoke(main, ["package", "lambda_a"])
+    result = runner.invoke(package, ["lambda_a"])
     assert result.exit_code == 0
     assert os.path.exists(
         os.path.join(lambda_path, "Dockerfile")
@@ -503,7 +502,7 @@ def test_package_docker_with_custom_filename_and_function_no_extension_in_cmd(
         "lambdas": {
             "lambda_custom": {
                 "type": ["docker"],
-                "runtime": "3.9",
+                "runtime": "3.12",
                 "file_name": "custom_handler.py",
                 "function_name": "my_custom_handler",
                 "layers": [],
@@ -516,7 +515,7 @@ def test_package_docker_with_custom_filename_and_function_no_extension_in_cmd(
 
     # Run the package command with --keep-dockerfile flag
     result = runner.invoke(
-        main, ["package", "lambda_custom", "--keep-dockerfile"], catch_exceptions=False
+        package, ["lambda_custom", "--keep-dockerfile"], catch_exceptions=False
     )
     print(f"Command output:\n{result.output}")  # Debug: Print command output
     assert result.exit_code == 0, f"Command failed with exit code {result.exit_code}"
