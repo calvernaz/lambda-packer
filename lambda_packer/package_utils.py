@@ -221,7 +221,7 @@ def package_zip(lambda_name, config_handler):
     output_file = os.path.join(os.getcwd(), "dist", f"{lambda_name}.zip")
 
     # Clean up the build directory
-    shutil.rmtree(build_dir)
+    shutil.rmtree(build_dir, ignore_errors=True)
 
     # Ensure the 'dist' directory exists
     ensure_directory_exists(os.path.join(os.getcwd(), "dist"))

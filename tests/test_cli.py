@@ -200,7 +200,7 @@ def test_package_zip_command(setup_test_directory):
         yaml.dump(package_config, config_file)
 
     # Run the package command
-    result = runner.invoke(main, ["package", "lambda_a"])
+    result = runner.invoke(package, ["lambda_a"])
 
     # Assert that the output shows successful packaging
     assert result.exit_code == 0
