@@ -233,3 +233,8 @@ class Config:
         """Return the runtime for a specific lambda, defaulting to '3.8' if not provided"""
         lambda_config = self.get_lambda_config(lambda_name)
         return lambda_config.get("runtime", self.default_python_runtime)
+
+    def should_bundle_layers(self, lambda_name: str) -> bool:
+        """Check if the lambda should bundle layers"""
+        lambda_config = self.get_lambda_config(lambda_name)
+        return lambda_config.get("bundle_layers", False)

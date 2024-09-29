@@ -239,14 +239,24 @@ def package_zip(lambda_name, config_handler):
             else:
                 shutil.copy2(s, d)
 
+    if config_handler.should_bundle_layers(lambda_name):
+        # Include the entire layers in the main zip file (copying full directories)
+        for layer_name in config_handler.get_lambda_layers(lambda_name):
+            click.echo(f"Including layer {layer_name} in the zip.")
+            layer_path = os.path.join(os.getcwd(), layer_name)
+            layer_dest_path = os.path.join(build_dir, layer_name)
+
+            # Copy the full layer directory into the 'layers' subdirectory in build_dir
+            shutil.copytree(layer_path, layer_dest_path)
+    else:
+        # Package layers separately if bundle_layers is False
+        for layer_name in config_handler.get_lambda_layers(lambda_name):
+            click.echo(f"Packaging layer separately: {layer_name}")
+            runtime = config_handler.get_lambda_runtime(lambda_name)
+            package_layer_internal(layer_name, runtime)
+
     # Create a ZIP file from the build directory
     shutil.make_archive(output_file.replace(".zip", ""), "zip", build_dir)
-
-    # Include the layers referenced in the config
-    for layer_name in config_handler.get_lambda_layers(lambda_name):
-        click.echo(f"Packaging layer_name: {layer_name}")
-        runtime = config_handler.get_lambda_runtime(lambda_name)
-        package_layer_internal(layer_name, runtime)
 
     click.secho(f"Lambda {lambda_name} packaged as {abs_to_rel_path(output_file)}.", fg="green")
 
