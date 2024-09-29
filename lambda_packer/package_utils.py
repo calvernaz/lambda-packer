@@ -57,9 +57,6 @@ def package_layer_internal(layer_name, runtime=Config.default_python_runtime):
     layer_dest = os.path.join(python_lib_dir, layer_name)
     shutil.copytree(common_path, layer_dest)
 
-    # Ensure the 'dist' directory exists
-    ensure_directory_exists(layer_output_dir)
-
     # Zip the temp_layer directory to create the layer package
     shutil.make_archive(output_file.replace(".zip", ""), "zip", layer_temp_dir)
 
@@ -223,6 +220,9 @@ def package_zip(lambda_name, config_handler):
     build_dir = os.path.join(lambda_path, "build")
     output_file = os.path.join(os.getcwd(), "dist", f"{lambda_name}.zip")
 
+    # Clean up the build directory
+    shutil.rmtree(build_dir)
+
     # Ensure the 'dist' directory exists
     ensure_directory_exists(os.path.join(os.getcwd(), "dist"))
     ensure_directory_exists(build_dir)
@@ -242,16 +242,13 @@ def package_zip(lambda_name, config_handler):
     # Create a ZIP file from the build directory
     shutil.make_archive(output_file.replace(".zip", ""), "zip", build_dir)
 
-    # Clean up the build directory
-    shutil.rmtree(build_dir)
-
     # Include the layers referenced in the config
     for layer_name in config_handler.get_lambda_layers(lambda_name):
         click.echo(f"Packaging layer_name: {layer_name}")
         runtime = config_handler.get_lambda_runtime(lambda_name)
         package_layer_internal(layer_name, runtime)
 
-    click.secho(f"Lambda {lambda_name} packaged as {output_file}.", fg="green")
+    click.secho(f"Lambda {lambda_name} packaged as {abs_to_rel_path(output_file)}.", fg="green")
 
 
 def install_dependencies(requirements_path, target_dir):

@@ -126,8 +126,6 @@ def generate_config(repo, lambda_name, runtime, layers, exclude_dirs):
     """Generate a package_config.yaml from an existing monorepo."""
 
     layers = list(layers)
-    exclude_dirs = list(exclude_dirs)
-
     config_path = config_file_path(repo)
     config_handler = Config(config_path)
 
@@ -135,6 +133,8 @@ def generate_config(repo, lambda_name, runtime, layers, exclude_dirs):
         # Add or update a specific lambda in package_config.yaml
         config_handler.config_lambda(lambda_name, layers, runtime)
     else:
+        exclude_dirs = list(exclude_dirs)
+
         # Configure the entire monorepo
         config_handler.config_repo(layers, exclude_dirs)
 
