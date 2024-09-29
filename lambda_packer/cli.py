@@ -83,7 +83,7 @@ def init(parent_dir, lambda_name):
     common_dir = os.path.join(parent_path, COMMON_DIR)
     lambda_dir = os.path.join(parent_path, lambda_name)
 
-    # Check if parent directory already exists
+    # Check if the parent directory already exists
     if file_exists(parent_path):
         raise FileExistsError(
             f"Parent directory '{parent_dir}' already exists. Aborting initialization."
@@ -94,17 +94,20 @@ def init(parent_dir, lambda_name):
     create_directory(lambda_dir)
     create_directory(dist_dir_path(parent_path))
 
+    # Create the package_config.yaml file
     write_to_file(config_file_path(parent_path), generate_package_config(lambda_name))
+    # Create the lambda .py file
     write_to_file(
         os.path.join(lambda_dir, Config.default_lambda_filename),
         generate_lambda_handler(lambda_name),
     )
+    # Create the requirements.txt file
     write_to_file(
         os.path.join(lambda_dir, Config.default_requirements_filename),
         "# Add your lambda dependencies here\n",
     )
 
-    click.secho("done", fg="green")
+    click.secho("Initialization complete. Your project is ready to go!", fg="green")
 
 
 @main.command(name="config")

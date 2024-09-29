@@ -49,7 +49,7 @@ This command creates:
 my_project/
 ├── common/
 ├── my_lambda/
-│   ├── lambda_handler.py
+│   ├── lambda.py
 │   └── requirements.txt
 ├── dist/
 └── package_config.yaml
@@ -64,10 +64,14 @@ The `package_config.yaml` file is where you define how to package your Lambdas. 
 ```yaml
 lambdas:
   my_lambda:
-    type: zip
-    runtime: "3.12"
+    type:
+      - zip
+    file_name: lambda
+    function_name: lambda_handler
+    runtime: '3.12'
+    platforms: ['linux/arm64', 'linux/x86_64']
     layers:
-    - common
+      - common
 ```
 
 ### 3. Package Lambda as a Zip
@@ -97,6 +101,12 @@ Then run:
 
 ```bash
 lambda-packer package my_lambda
+```
+
+Or package them all:
+
+```bash
+layer-packer package
 ```
 
 The tool will build a Docker image using the specified Python runtime and package the Lambda function.

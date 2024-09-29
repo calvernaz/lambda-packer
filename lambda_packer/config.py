@@ -55,7 +55,7 @@ class Config:
             with open(self.config_path, "r") as config_file:
                 return yaml.safe_load(config_file) or {}
         except yaml.YAMLError as e:
-            raise ValueError(f"Error parsing YAML config: {str(e)}")
+            raise ValueError(f"Error parsing YAML config: {str(e)}") from e
 
     def validate(self):
         """Validate the configuration for required fields and set defaults"""
@@ -96,12 +96,12 @@ class Config:
             raise ValueError(f"Config validation failed with errors: {self.errors}")
 
     def config_lambda(
-        self,
-        lambda_name,
-        layers,
-        runtime=default_python_runtime,
-        lambda_types=[default_package_type],
-        platforms=default_platforms,
+            self,
+            lambda_name,
+            layers,
+            runtime=default_python_runtime,
+            lambda_types=[default_package_type],
+            platforms=default_platforms,
     ):
         """Add a specific lambda to package_config.yaml."""
 
@@ -193,6 +193,11 @@ class Config:
     def validate_runtime(self, runtime):
         """Validate that the runtime is between 3.8 and 3.12"""
         valid_runtimes = ["3.8", "3.9", "3.10", "3.11", "3.12"]
+
+        if not isinstance(runtime, str):
+            self.errors.append(f"Invalid runtime type: {runtime}. Runtime must be a string.")
+            return
+
         if runtime not in valid_runtimes:
             self.errors.append(
                 f"Invalid runtime: {runtime}. Supported runtimes are: {', '.join(valid_runtimes)}"
@@ -202,7 +207,7 @@ class Config:
         """Validate that the architecture is 'linux/amd64'"""
         valid_platforms = ["linux/arm64", "linux/x86_64", "linux/amd64"]
         # all values from platform but be in valid_platforms
-        if not all(platform in valid_platforms for platform in platforms):
+        if any(platform not in valid_platforms for platform in platforms):
             self.errors.append(
                 f"Invalid platforms: {platforms}. Supported platforms are: {', '.join(valid_platforms)}"
             )

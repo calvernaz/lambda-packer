@@ -94,8 +94,8 @@ def package_all_lambdas(config_handler, keep_dockerfile):
             f"Packaging lambda '{lambda_name}' of type '{lambda_config.get('type', 'zip')}'..."
         )
         package_lambda(lambda_name, config_handler, keep_dockerfile)
-    click.secho(
-        f"Finished packaging all lambdas in {config_handler.config_path}.", fg="green"
+    click.echo(
+        f"Finished packaging all lambdas in {config_handler.config_path}."
     )
 
 
@@ -251,7 +251,7 @@ def package_zip(lambda_name, config_handler):
         runtime = config_handler.get_lambda_runtime(lambda_name)
         package_layer_internal(layer_name, runtime)
 
-    click.echo(f"Lambda {lambda_name} packaged as {output_file}.")
+    click.secho(f"Lambda {lambda_name} packaged as {output_file}.", fg="green")
 
 
 def install_dependencies(requirements_path, target_dir):

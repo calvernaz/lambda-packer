@@ -125,8 +125,8 @@ def test_missing_lambdas_section(tmpdir):
     "config_content, expected",
     [
         (
-            "lambdas:\n  lambda1:\n    type: zip\n",
-            {"lambdas": {"lambda1": {"type": "zip"}}},
+                "lambdas:\n  lambda1:\n    type: zip\n",
+                {"lambdas": {"lambda1": {"type": "zip"}}},
         ),
         ("", {}),
     ],
@@ -183,8 +183,8 @@ def test_validate(config_instance, config_data, expected_error):
         ("3.8", None),
         ("3.12", None),
         (
-            "3.7",
-            "Invalid runtime: 3.7. Supported runtimes are: 3.8, 3.9, 3.10, 3.11, 3.12",
+                "3.7",
+                "Invalid runtime: 3.7. Supported runtimes are: 3.8, 3.9, 3.10, 3.11, 3.12",
         ),
     ],
     ids=["valid_runtime_3.8", "valid_runtime_3.12", "invalid_runtime"],
@@ -200,30 +200,46 @@ def test_validate_runtime(config_instance, runtime, expected_error):
         assert not config_instance.errors
 
 
+def test_validate_runtime_value(config_instance):
+    # Valid runtimes
+    valid_runtimes = ["3.8", "3.9", "3.10", "3.11", "3.12"]
+    for runtime in valid_runtimes:
+        config_instance.validate_runtime(runtime)
+        assert not config_instance.errors, f"Unexpected error for valid runtime {runtime}"
+
+    # Invalid runtime
+    config_instance.validate_runtime("3.7")
+    assert "Invalid runtime: 3.7. Supported runtimes are: 3.8, 3.9, 3.10, 3.11, 3.12" in config_instance.errors
+
+    # Non-string runtime
+    config_instance.validate_runtime(3.8)
+    assert "Invalid runtime type: 3.8. Runtime must be a string." in config_instance.errors
+
+
 @pytest.mark.parametrize(
     "repo, lambda_name, layers, runtime, lambda_type, expected_output",
     [
         (
-            "/repo",
-            "lambda1",
-            ["layer1"],
-            "3.8",
-            "zip",
-            "Lambda 'lambda1' has been added to package_config.yaml.",
+                "/repo",
+                "lambda1",
+                ["layer1"],
+                "3.8",
+                "zip",
+                "Lambda 'lambda1' has been added to package_config.yaml.",
         ),
         (
-            "/repo",
-            "lambda1",
-            ["layer1"],
-            "3.8",
-            "docker",
-            "Lambda 'lambda1' has been added to package_config.yaml.",
+                "/repo",
+                "lambda1",
+                ["layer1"],
+                "3.8",
+                "docker",
+                "Lambda 'lambda1' has been added to package_config.yaml.",
         ),
     ],
     ids=["zip_lambda", "docker_lambda"],
 )
 def test_config_lambda(
-    config_instance, repo, lambda_name, layers, runtime, lambda_type, expected_output
+        config_instance, repo, lambda_name, layers, runtime, lambda_type, expected_output
 ):
     # Arrange
     with patch("os.path.exists", return_value=True):
@@ -245,8 +261,8 @@ def test_config_lambda(
     "layers, expected_lambdas",
     [
         (
-            ["layer1"],
-            {"lambda1": {"type": "zip", "runtime": "3.12", "layers": ["layer1"]}},
+                ["layer1"],
+                {"lambda1": {"type": "zip", "runtime": "3.12", "layers": ["layer1"]}},
         ),
     ],
     ids=["single_lambda"],
@@ -328,7 +344,7 @@ def test_get_lambda_layers(config_instance, config_data, lambda_name, expected_l
     ids=["existing_runtime", "default_runtime"],
 )
 def test_get_lambda_runtime(
-    config_instance, config_data, lambda_name, expected_runtime
+        config_instance, config_data, lambda_name, expected_runtime
 ):
     # Arrange
     config_instance.config_data = config_data
@@ -345,7 +361,7 @@ def test_config_repo_exclude_dirs(config_instance):
     layers = []
 
     with patch("os.walk") as mock_walk, patch.object(
-        config_instance, "save_config"
+            config_instance, "save_config"
     ) as mock_save:
         mock_walk.return_value = [
             ("/repo/exclude_this_dir", [], ["lambda_handler.py"]),
@@ -365,7 +381,7 @@ def test_config_repo_exclude_layers(config_instance):
     layers = ["layer_to_exclude"]
 
     with patch("os.walk") as mock_walk, patch.object(
-        config_instance, "save_config"
+            config_instance, "save_config"
     ) as mock_save:
         mock_walk.return_value = [
             ("/repo/layer_to_exclude", [], ["lambda_handler.py"]),
@@ -386,10 +402,10 @@ def test_config_repo_exclude_layers(config_instance):
         (["linux/x86_64"], None),
         (["linux/arm64"], None),
         (
-            "invalid_platform",
-            [
-                f"Invalid platforms: invalid_platform. Supported platforms are: {', '.join(Config.valid_platforms)}"
-            ],
+                "invalid_platform",
+                [
+                    f"Invalid platforms: invalid_platform. Supported platforms are: {', '.join(Config.valid_platforms)}"
+                ],
         ),
     ],
     ids=["valid_platform_x86_64", "valid_platform_arm64", "invalid_platform"],
