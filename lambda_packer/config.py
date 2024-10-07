@@ -1,10 +1,9 @@
 import logging
+import os
+from typing import List, Dict, Any
 
 import yaml
 import click
-import os
-
-from typing import List
 
 
 class Config:
@@ -96,12 +95,12 @@ class Config:
             raise ValueError(f"Config validation failed with errors: {self.errors}")
 
     def config_lambda(
-            self,
-            lambda_name,
-            layers,
-            runtime=default_python_runtime,
-            lambda_types=[default_package_type],
-            platforms=default_platforms,
+        self,
+        lambda_name,
+        layers,
+        runtime=default_python_runtime,
+        lambda_types=[default_package_type],
+        platforms=default_platforms,
     ):
         """Add a specific lambda to package_config.yaml."""
 
@@ -195,7 +194,9 @@ class Config:
         valid_runtimes = ["3.8", "3.9", "3.10", "3.11", "3.12"]
 
         if not isinstance(runtime, str):
-            self.errors.append(f"Invalid runtime type: {runtime}. Runtime must be a string.")
+            self.errors.append(
+                f"Invalid runtime type: {runtime}. Runtime must be a string."
+            )
             return
 
         if runtime not in valid_runtimes:

@@ -91,9 +91,7 @@ def package_all_lambdas(config_handler, keep_dockerfile):
             f"Packaging lambda '{lambda_name}' of type '{lambda_config.get('type', 'zip')}'..."
         )
         package_lambda(lambda_name, config_handler, keep_dockerfile)
-    click.echo(
-        f"Finished packaging all lambdas in {config_handler.config_path}."
-    )
+    click.echo(f"Finished packaging all lambdas in {config_handler.config_path}.")
 
 
 def package_docker(lambda_name, config_handler, keep_dockerfile):
@@ -201,9 +199,9 @@ def package_docker(lambda_name, config_handler, keep_dockerfile):
             shutil.rmtree(layer_dir)
 
         if (
-                dockerfile_generated
-                and not keep_dockerfile
-                and os.path.exists(dockerfile_path)
+            dockerfile_generated
+            and not keep_dockerfile
+            and os.path.exists(dockerfile_path)
         ):
             click.echo(f"Removing generated Dockerfile for {lambda_name}")
             os.remove(dockerfile_path)
@@ -258,7 +256,15 @@ def package_zip(lambda_name, config_handler):
     # Create a ZIP file from the build directory
     shutil.make_archive(output_file.replace(".zip", ""), "zip", build_dir)
 
-    click.secho(f"Lambda {lambda_name} packaged as {abs_to_rel_path(output_file)}.", fg="green")
+    # Include the layers referenced in the config
+    for layer_name in config_handler.get_lambda_layers(lambda_name):
+        click.echo(f"Packaging layer_name: {layer_name}")
+        runtime = config_handler.get_lambda_runtime(lambda_name)
+        package_layer_internal(layer_name, runtime)
+
+    click.secho(
+        f"Lambda {lambda_name} packaged as {abs_to_rel_path(output_file)}.", fg="green"
+    )
 
 
 def install_dependencies(requirements_path, target_dir):

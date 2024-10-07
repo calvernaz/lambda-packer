@@ -355,7 +355,7 @@ def test_package_docker_generates_templated_dockerfile(setup_test_directory):
                 "type": ["docker"],
                 "runtime": "3.12",
                 "layers": ["common"],
-                "platforms": ["linux/amd64"]
+                "platforms": ["linux/amd64"],
             }
         }
     }
@@ -377,7 +377,9 @@ def test_package_docker_generates_dockerfile_with_custom_layers(setup_test_direc
     """Test that lambda-packer generates a Dockerfile with custom layers."""
     runner = CliRunner()
 
-    lambda_with_layer_path = os.path.join(setup_test_directory, "lambda_with_custom_layer")
+    lambda_with_layer_path = os.path.join(
+        setup_test_directory, "lambda_with_custom_layer"
+    )
     if not os.path.exists(lambda_with_layer_path):
         os.makedirs(lambda_with_layer_path)
 
@@ -392,7 +394,7 @@ def test_package_docker_generates_dockerfile_with_custom_layers(setup_test_direc
                 "type": ["docker"],
                 "runtime": "3.12",
                 "layers": ["layer_custom"],
-                "platforms": ["linux/amd64"]
+                "platforms": ["linux/amd64"],
             }
         }
     }
@@ -430,7 +432,7 @@ def test_package_docker_deletes_generated_dockerfile(setup_test_directory):
             "lambda_a": {
                 "type": ["docker"],
                 "runtime": "3.12",
-                "platforms": ["linux/amd64"]
+                "platforms": ["linux/amd64"],
             }
         }
     }
@@ -512,7 +514,7 @@ def test_package_docker_with_custom_filename_and_function_no_extension_in_cmd(
                 "file_name": "custom_handler.py",
                 "function_name": "my_custom_handler",
                 "layers": [],
-                "platforms": ["linux/amd64"]
+                "platforms": ["linux/amd64"],
             }
         }
     }
