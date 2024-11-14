@@ -1,14 +1,9 @@
 import os
 import shutil
-import subprocess
-import sys
-from string import Template
 
 import click
-import yaml
 
 from lambda_packer.config import Config
-from lambda_packer.docker_utils import check_docker_daemon, docker_client
 from lambda_packer.file_utils import (
     file_exists,
     config_file_path,

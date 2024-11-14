@@ -1,4 +1,3 @@
-import pytest
 
 from lambda_packer.config import Config
 from lambda_packer.template_utils import (

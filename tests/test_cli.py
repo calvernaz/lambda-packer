@@ -15,7 +15,6 @@ def setup_test_directory(tmpdir):
     # Create temporary directories for lambdas
     lambda_dir = tmpdir.mkdir("lambda_a")
     lambda_b_dir = tmpdir.mkdir("lambda_b")
-    common_dir = tmpdir.mkdir("common")
 
     # Add a lambda_handler.py file to simulate a Zip lambda
     lambda_dir.join("lambda_handler.py").write(
@@ -234,7 +233,7 @@ def test_package_docker_command(mock_docker, setup_test_directory):
     # Manually create a Dockerfile
     with open("second_lambda/Dockerfile", "w") as dockerfile:
         dockerfile.write(
-            f"""
+            """
         FROM public.ecr.aws/lambda/python:3.9
         WORKDIR /var/task
         COPY lambda_handler.py ./
@@ -300,7 +299,7 @@ def test_package_specific_lambda(setup_test_directory):
     # Assert that lambda_a was packaged successfully
     assert result.exit_code == 0
     assert (
-        f"Lambda lambda_a packaged as" in result.output
+        "Lambda lambda_a packaged as" in result.output
     )  # Match the actual output format
 
 
@@ -354,7 +353,6 @@ def test_package_docker_generates_templated_dockerfile(setup_test_directory):
             "lambda_with_layer": {
                 "type": ["docker"],
                 "runtime": "3.12",
-                "layers": ["common"],
                 "platforms": ["linux/amd64"],
             }
         }
@@ -369,19 +367,25 @@ def test_package_docker_generates_templated_dockerfile(setup_test_directory):
     assert result.exit_code == 0, f"Command failed with exit code {result.output}"
 
     # Verify Dockerfile is created
-    dockerfile_path = os.path.join(lambda_with_layer_path, "Dockerfile")
     assert "Removing generated Dockerfile for lambda_with_layer" in result.output
 
 
 def test_package_docker_generates_dockerfile_with_custom_layers(setup_test_directory):
     """Test that lambda-packer generates a Dockerfile with custom layers."""
-    runner = CliRunner()
 
     lambda_with_layer_path = os.path.join(
-        setup_test_directory, "lambda_with_custom_layer"
+        setup_test_directory, "lambda_a"
     )
     if not os.path.exists(lambda_with_layer_path):
         os.makedirs(lambda_with_layer_path)
+
+    layer = os.path.join(setup_test_directory, "layer_custom")
+    if not os.path.exists(layer):
+        os.makedirs(layer)
+
+    with open(os.path.join(layer, "requirements.txt"), "w") as f:
+        f.write("requests\n")
+
 
     with open(os.path.join(lambda_with_layer_path, "lambda_handler.py"), "w") as f:
         f.write(
@@ -390,7 +394,7 @@ def test_package_docker_generates_dockerfile_with_custom_layers(setup_test_direc
 
     package_config = {
         "lambdas": {
-            "lambda_with_custom_layer": {
+            "lambda_a": {
                 "type": ["docker"],
                 "runtime": "3.12",
                 "layers": ["layer_custom"],
@@ -402,8 +406,10 @@ def test_package_docker_generates_dockerfile_with_custom_layers(setup_test_direc
     with open("package_config.yaml", "w") as config_file:
         yaml.dump(package_config, config_file)
 
+    runner = CliRunner()
+    result = runner.invoke(package, ["lambda_a", "--keep-dockerfile"])
+
     # Run the package command
-    result = runner.invoke(main, ["package", "lambda_with_custom_layer"])
     assert os.path.exists(os.path.join(lambda_with_layer_path, "Dockerfile"))
 
     # Verify the Dockerfile contains the correct layer logic

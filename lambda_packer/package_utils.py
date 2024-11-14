@@ -126,9 +126,9 @@ def package_docker(lambda_name, config_handler, keep_dockerfile):
         for layer_name in layers:
             layer_dependencies += f"RUN if [ -f '${{LAMBDA_TASK_ROOT}}/{layer_name}/requirements.txt' ]; then \\\n"
             layer_dependencies += f"    pip install --no-cache-dir -r ${{LAMBDA_TASK_ROOT}}/{layer_name}/requirements.txt -t ${{LAMBDA_TASK_ROOT}}; \\\n"
-            layer_dependencies += f"else \\\n"
+            layer_dependencies += "else \\\n"
             layer_dependencies += f"    echo 'Warning: No requirements.txt found for {layer_name}. Skipping dependency installation.'; \\\n"
-            layer_dependencies += f"fi\n"
+            layer_dependencies += "fi\n"
 
         # Substitute values into the template
         dockerfile_content = DOCKERFILE_TEMPLATE.substitute(

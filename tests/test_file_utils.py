@@ -2,7 +2,6 @@ import os
 from tempfile import TemporaryDirectory
 
 import yaml
-from typing import List
 from lambda_packer.file_utils import (
     get_common_paths,
     read_yaml,
