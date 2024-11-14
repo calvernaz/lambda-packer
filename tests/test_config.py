@@ -45,25 +45,13 @@ def create_invalid_config(tmpdir):
         yaml.dump(config_data, config_file)
     return config_path
 
+
 def test_load_invalid_config(create_invalid_config):
     """Test loading the configuration from an invalid config file."""
     config = Config(create_invalid_config)
 
     with pytest.raises(ValueError, match="Config validation failed"):
         config.validate()
-
-
-# def test_validate_runtime(create_valid_config):
-#     """Test that the validate_runtime method correctly validates supported runtimes."""
-#     config = Config(create_valid_config)
-#
-#     # This should pass as the runtime is valid
-#     config.validate_runtime("3.9")
-#     assert config.errors == []
-#
-#     # Invalid runtime
-#     config.validate_runtime("3.5")
-#     assert any("Invalid runtime: 3.5" in error for error in config.errors)
 
 
 def test_validate_config(create_valid_config):
@@ -73,27 +61,6 @@ def test_validate_config(create_valid_config):
 
     # Check that no errors occurred during validation
     assert config.errors == []
-
-
-# def test_get_lambda_config(create_valid_config):
-#     """Test fetching a specific lambda config."""
-#     config = Config(create_valid_config)
-#     lambda_config = config.get_lambda_config("lambda_docker")
-#
-#     assert lambda_config["type"] == "docker"
-#     assert lambda_config["runtime"] == "3.9"
-
-
-# def test_get_lambda_layers(create_valid_config):
-#     """Test fetching the layers associated with a specific lambda."""
-#     config = Config(create_valid_config)
-#     layers = config.get_lambda_layers("lambda_example")
-#
-#     assert layers == ["common"]
-#
-#     # Test a lambda with no layers
-#     layers = config.get_lambda_layers("lambda_docker")
-#     assert layers == []
 
 
 def test_missing_lambdas_section(tmpdir):
@@ -185,29 +152,6 @@ def test_validate_runtime(config_instance, runtime, expected_error):
         assert expected_error in config_instance.errors
     else:
         assert not config_instance.errors
-
-
-# def test_validate_runtime_value(config_instance):
-#     # Valid runtimes
-#     valid_runtimes = ["3.8", "3.9", "3.10", "3.11", "3.12"]
-#     for runtime in valid_runtimes:
-#         config_instance.validate_runtime(runtime)
-#         assert (
-#             not config_instance.errors
-#         ), f"Unexpected error for valid runtime {runtime}"
-#
-#     # Invalid runtime
-#     config_instance.validate_runtime("3.7")
-#     assert (
-#         "Invalid runtime: 3.7. Supported runtimes are: 3.8, 3.9, 3.10, 3.11, 3.12"
-#         in config_instance.errors
-#     )
-#
-#     # Non-string runtime
-#     config_instance.validate_runtime(3.8)
-#     assert (
-#         "Invalid runtime type: 3.8. Runtime must be a string." in config_instance.errors
-#     )
 
 
 @pytest.mark.parametrize(

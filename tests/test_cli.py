@@ -373,9 +373,7 @@ def test_package_docker_generates_templated_dockerfile(setup_test_directory):
 def test_package_docker_generates_dockerfile_with_custom_layers(setup_test_directory):
     """Test that lambda-packer generates a Dockerfile with custom layers."""
 
-    lambda_with_layer_path = os.path.join(
-        setup_test_directory, "lambda_a"
-    )
+    lambda_with_layer_path = os.path.join(setup_test_directory, "lambda_a")
     if not os.path.exists(lambda_with_layer_path):
         os.makedirs(lambda_with_layer_path)
 
@@ -385,7 +383,6 @@ def test_package_docker_generates_dockerfile_with_custom_layers(setup_test_direc
 
     with open(os.path.join(layer, "requirements.txt"), "w") as f:
         f.write("requests\n")
-
 
     with open(os.path.join(lambda_with_layer_path, "lambda_handler.py"), "w") as f:
         f.write(
