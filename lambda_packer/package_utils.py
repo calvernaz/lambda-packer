@@ -175,9 +175,16 @@ def package_docker(lambda_name, config_handler, keep_dockerfile):
     # Build the Docker image
     try:
         for target_platform in target_platforms:
+            # Append platform to the image tag to avoid overwriting
+            # e.g., my-lambda:latest -> my-lambda:latest-arm64
+            arch = target_platform.split("/")[-1]
+            platform_tag = f"{image_tag}-{arch}"
+            
+            click.secho(f"Building Docker image for platform '{target_platform}' with tag '{platform_tag}'...", fg="cyan")
+            
             build_output = docker_client().api.build(
                 path=lambda_path,
-                tag=image_tag,
+                tag=platform_tag,
                 platform=target_platform,
                 rm=True,
                 decode=True,
@@ -190,6 +197,9 @@ def package_docker(lambda_name, config_handler, keep_dockerfile):
                 elif "error" in log:
                     click.echo(f"Error: {log['error']}")
                     raise Exception(log["error"])
+            
+            click.secho(f"Successfully built {platform_tag}", fg="green")
+            
     except Exception as e:
         click.echo(f"Error during Docker build: {str(e)}")
         raise
@@ -207,7 +217,7 @@ def package_docker(lambda_name, config_handler, keep_dockerfile):
             os.remove(dockerfile_path)
 
     click.echo(
-        f"Lambda '{lambda_name}' packaged as Docker container with tag '{image_tag}'."
+        f"Lambda '{lambda_name}' packaged as Docker container(s) for platforms: {', '.join(target_platforms)}."
     )
 
 

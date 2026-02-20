@@ -28,7 +28,7 @@ class Config:
     default_python_runtime = "3.12"
     default_package_type = "docker"
     default_platforms = ["linux/arm64", "linux/x86_64"]
-    valid_platforms = ["linux/arm64", "linux/x86_64", "linux/amd64"]
+    valid_platforms = ["linux/arm64", "linux/x86_64", "linux/amd64", "linux/arm64/v8"]
     package_config_yaml = "package_config.yaml"
     default_lambda_filename = "lambda.py"
     default_requirements_filename = "requirements.txt"
@@ -166,6 +166,7 @@ class Config:
                         "type": lambda_type,
                         "runtime": self.default_python_runtime,
                         "layers": list(layers),
+                        "platforms": self.default_platforms,
                     }
                 else:
                     # Update existing lambda with new layers
