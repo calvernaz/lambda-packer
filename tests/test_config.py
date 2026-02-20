@@ -200,7 +200,14 @@ def test_config_lambda(
     [
         (
             ["layer1"],
-            {"lambda1": {"type": "zip", "runtime": "3.12", "layers": ["layer1"]}},
+            {
+                "lambda1": {
+                    "type": "zip",
+                    "runtime": "3.12",
+                    "layers": ["layer1"],
+                    "platforms": ["linux/arm64", "linux/x86_64"],
+                }
+            },
         ),
     ],
     ids=["single_lambda"],

@@ -206,11 +206,16 @@ class Config:
 
     def validate_platforms(self, platforms: List[str]):
         """Validate that the architecture is 'linux/amd64'"""
-        valid_platforms = ["linux/arm64", "linux/x86_64", "linux/amd64"]
-        # all values from platform but be in valid_platforms
-        if any(platform not in valid_platforms for platform in platforms):
+        if not isinstance(platforms, list):
             self.errors.append(
-                f"Invalid platforms: {platforms}. Supported platforms are: {', '.join(valid_platforms)}"
+                f"Invalid platforms: {platforms}. Supported platforms are: {', '.join(self.valid_platforms)}"
+            )
+            return
+
+        # all values from platform but be in valid_platforms
+        if any(platform not in self.valid_platforms for platform in platforms):
+            self.errors.append(
+                f"Invalid platforms: {platforms}. Supported platforms are: {', '.join(self.valid_platforms)}"
             )
 
     def get_lambdas(self):
