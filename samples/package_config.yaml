@@ -1,0 +1,26 @@
+runtime_default: "python3.12"
+
+layers:
+  common:
+    path: common
+    runtime: "python3.12"
+    requirements: common/requirements.txt
+    platforms: [linux/amd64, linux/arm64]
+
+lambdas:
+  billing:
+    path: samples/billing
+    type: zip
+    runtime: "python3.12"
+    requirements: billing/requirements.txt
+    layers: [common]
+    platforms: [linux/amd64, linux/arm64]
+
+  reporting:
+    path: samples/reporting
+    type: image
+    handler: "handler.handler"
+    image_tag: "localhost:5000/lambda-reporting:{arch}"
+    runtime: "python3.12"
+    layers: [common]
+    platforms: [linux/amd64, linux/arm64]
