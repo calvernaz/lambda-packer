@@ -99,7 +99,9 @@ This ensures that **only the necessary files** are sent to Docker, making builds
 
 ## 🔒 Security & Determinism
 
-All ZIP files are generated with a fixed timestamp (`1980-01-01`) and sorted file entries. This ensures that if your code doesn't change, the SHA-256 hash of your ZIP file remains identical, preventing unnecessary AWS Lambda deployments.
+All ZIP files are generated with a fixed timestamp (`1980-01-01`) and sorted file entries. 
+This ensures that if your code doesn't change, the SHA-256 hash of your ZIP file remains identical, 
+preventing unnecessary AWS Lambda deployments.
 
 ---
 
