@@ -1,4 +1,4 @@
-from lambda_packer.builders.dockerfile_gen import DockerfileGenerator
+from lambda_packer.builders.dockerfile import DockerfileGenerator
 
 def test_dockerfile_gen_zip_no_layers():
     generator = DockerfileGenerator()

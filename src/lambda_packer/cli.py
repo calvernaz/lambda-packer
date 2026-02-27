@@ -11,9 +11,9 @@ from typing import Optional
 import click
 
 from .builders.buildkit import BuildKitBuilder
-from .builders.dockerfile_gen import DockerfileGenerator
+from .builders.dockerfile import DockerfileGenerator
 from .config import ArtifactType, PackageConfig
-from .dist_layout import ManifestGenerator
+from .manifest import ManifestGenerator
 from .exporters.oci import OCIExporter
 from .exporters.zip import ZipExporter
 from .planner import Planner
