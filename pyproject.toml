@@ -27,4 +27,9 @@ dependencies = [
 dev = ["pytest", "pytest-mock", "black", "twine", "bump2version"]
 
 [project.scripts]
-lambda-packer = "lambda_packer.cli:main"
+lambda-packer = "lambda_packer.cli:cli"
+
+[dependency-groups]
+dev = [
+    "pytest-mock>=3.15.1",
+]

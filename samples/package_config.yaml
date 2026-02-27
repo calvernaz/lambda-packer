@@ -9,7 +9,7 @@ layers:
 
 lambdas:
   billing:
-    path: samples/billing
+    path: billing
     type: zip
     runtime: "python3.12"
     requirements: billing/requirements.txt
@@ -17,7 +17,7 @@ lambdas:
     platforms: [linux/amd64, linux/arm64]
 
   reporting:
-    path: samples/reporting
+    path: reporting
     type: image
     handler: "handler.handler"
     image_tag: "localhost:5000/lambda-reporting:{arch}"

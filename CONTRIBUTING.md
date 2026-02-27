@@ -19,7 +19,11 @@ Thank you for considering contributing to this project! Here are a few guideline
 4. **Test your changes**
    Run tests locally to ensure everything works as expected:
    ```
-   pytest test
+   uv run pytest tests/
+   ```
+   Run the samples:
+   ```bash
+   cd samples; uv run lambda-packer build --config package_config.yaml --dist dist
    ```
 5. **Commit your changes**
    Write a clear and concise message:

@@ -1,265 +1,122 @@
-# lambda-packer
+# Lambda Packer (BuildKit-Native)
 
-**A streamlined tool for managing and packaging Python AWS Lambda functions**
----
+`lambda-packer` is a "compiler" for AWS Lambda and Layers. Instead of running `pip install` on your host machine, it compiles your `package_config.yaml` into a BuildKit execution graph, ensuring your artifacts are always built in a runtime-correct, isolated environment.
 
-## Overview
+## 🚀 Key Features
 
-`lambda-packer` is a command-line tool designed to simplify the process of packaging Python AWS Lambda functions.
-It provides an opinionated approach to develop Lambdas using a monorepo, allowing packaging as either zip files or Docker containers,
-with shared dependencies packaged as Lambda layers.
-### Key Features
-
-- Package Lambdas as zip files or Docker containers
-- Support for multiple Lambda layers shared across functions
-- Simple YAML configuration to manage Lambdas and layers
-- Layer packaging with automatic dependency handling
+- **BuildKit-First:** Zero host-side dependencies (except Docker). No more "it works on my machine" C-extension issues.
+- **Standardized Context:** Build from any folder on your machine; the tool automatically stages your source and layers.
+- **Parallel Builds:** High-performance execution using `ThreadPoolExecutor` and BuildKit's internal graph concurrency.
+- **Multi-Platform:** Built-in support for `linux/amd64` and `linux/arm64`.
+- **Deterministic ZIPs:** Reproducible artifacts with fixed timestamps and sorted entries.
+- **OCI Image Support:** Build and push multi-platform Lambda images directly to a registry.
 
 ---
 
-## Installation
+## 🚦 Quick Start
 
+### 1. Initialize the project
 ```bash
-pip install lambda-packer
+uv sync
+```
+
+### 2. Run a Parallel Build
+```bash
+# Build with 4 parallel workers
+uv run lambda-packer build --config package_config.yaml -j 4
+```
+
+### 3. Push to a Registry
+Ensure you are logged into your registry (`docker login`), then run:
+```bash
+uv run lambda-packer build --config package_config.yaml --push
 ```
 
 ---
 
-## Usage
+## 📖 Configuration (`package_config.yaml`)
 
-![Demo](./demo.gif)
-
-### 1. Initialize a new repo
-
-The `init` command creates a basic repository structure for your Lambda functions, including a `common` folder for shared dependencies, an example Lambda function, and a `package_config.yaml` file.
-
-```bash
-lambda-packer init <parent_directory> --lambda-name <lambda_name>
-```
-
-Example:
-
-```bash
-lambda-packer init my_project --lambda-name my_lambda
-```
-
-This command creates:
-
-```
-my_project/
-├── common/
-├── my_lambda/
-│   ├── lambda.py
-│   └── requirements.txt
-├── dist/
-└── package_config.yaml
-```
-
-### 2. Configuration
-
-The `package_config.yaml` file is where you define how to package your Lambdas. You can specify the type of packaging (`zip` or `docker`), the Python runtime, and any layers associated with the Lambda.
-
-#### Example `package_config.yaml`
+The configuration supports absolute paths, allowing you to build Lambdas from other projects.
 
 ```yaml
+runtime_default: "python3.12"
+
+layers:
+  # Shared layer from an external project
+  common-utils:
+    path: ./common
+    requirements: ./common/requirements.txt
+    platforms: [linux/amd64, linux/arm64]
+
 lambdas:
-  my_lambda:
-    type:
-      - zip
-    file_name: lambda
-    function_name: lambda_handler
-    runtime: '3.12'
-    platforms: ['linux/arm64', 'linux/x86_64']
-    layers:
-      - common
-```
-
-### 3. Package Lambda as a Zip
-
-To package a Lambda function (for a `zip` type Lambda), use the following command:
-
-```bash
-lambda-packer package my_lambda
-```
-
-This will package the Lambda function and any referenced layers (e.g., `common`) into a zip file in the `dist` directory.
-
-### 4. Package Lambda as a Docker Container
-
-To package a Lambda as a Docker container (for a `docker` type Lambda), modify the `package_config.yaml` and set `type: docker`.
-
-```yaml
-lambdas:
-  my_lambda:
-    type: docker
-    runtime: "3.9"
-    layers:
-    - common
-```
-
-Then run:
-
-```bash
-lambda-packer package my_lambda
-```
-
-Or package them all:
-
-```bash
-layer-packer package
-```
-
-The tool will build a Docker image using the specified Python runtime and package the Lambda function.
-
-### 5. Packaging Lambda Layers
-
-If you need to package shared dependencies (like the `common` folder) as Lambda layers, you can use the `package-layer` command:
-
-```bash
-lambda-packer package-layer common
-```
-
-This command packages the `common` directory as a Lambda layer and zips it to the `dist/` folder.
-
----
-
-## Available Commands
-
-- `init <parent_directory> --lambda-name <lambda_name>`: Initialize a new monorepo with a common folder, a lambda, and `package_config.yaml`.
-- `package <lambda_name>`: Package the specified Lambda function (either as zip or Docker container).
-- `package-layer <layer_name>`: Package a specific layer (e.g., `common`) into a zip file.
-- `config <lambda_name>`: Generate a package_config.yaml from an existing monorepo. 
-- `clean`: Clean the `dist/` directory by removing all contents.
-
----
-
-## Example Workflow
-
-1. **Initialize the project**:
-
-```bash
-lambda-packer init my_project --lambda-name my_lambda
-```
-
-2. **Edit `package_config.yaml`** to configure the Lambda:
-
-```yaml
-lambdas:
-  my_lambda:
+  # ZIP-based Lambda
+  api-handler:
+    path: ./lambdas/api
     type: zip
-    runtime: "3.9"
-    layers:
-    - common
-```
+    layers: [common-utils]
+    platforms: [linux/amd64, linux/arm64]
 
-3. **Install dependencies** for `my_lambda` by editing `my_lambda/requirements.txt`.
-
-4. **Package the Lambda**:
-
-```bash
-lambda-packer package my_lambda
-```
-
-5. **Package the `common` layer** (if needed):
-
-```bash
-lambda-packer package-layer common
-```
-
-### 6. Adding a new lambda to an existing repository
-
-You can add a new Lambda to an existing repository using the `lambda` command. You can also specify layers to be added to the new Lambda.
-
-```bash
-lambda-packer lambda <lambda_name> --runtime <runtime_version> --type <zip|docker> --layers <layer1> --layers <layer2>
-```
-
-Example:
-
-```bash
-lambda-packer lambda my_new_lambda --runtime 3.9 --type docker --layers common --layers shared
-```
-
-This will create a new Lambda directory and update the `package_config.yaml` like so:
-
-```yaml
-lambdas:
-  my_new_lambda:
-    runtime: "3.9"
-    type: docker
-    layers:
-    - common
-    - shared
-```
-
-If no layers are specified, the `layers` key will not be added.
-
-Example without layers:
-
-```bash
-lambda-packer lambda my_new_lambda --runtime 3.9 --type docker
-```
-
-This will update the `package_config.yaml` like this:
-
-```yaml
-lambdas:
-  my_new_lambda:
-    runtime: "3.9"
-    type: docker
+  # Image-based Lambda with custom tagging
+  processor:
+    path: ./samples/processor
+    type: image
+    image_tag: "my-registry.com/processor:{arch}"
+    handler: "app.handler"
+    layers: [common-utils]
+    platforms: [linux/amd64, linux/arm64]
 ```
 
 ---
 
-## Contributing
+## 💻 CLI Usage
 
-Contributions are welcome! If you'd like to contribute to this project, please open a pull request or issue on GitHub.
+### `build` command
+```bash
+uv run lambda-packer build [OPTIONS]
+```
 
-### Development Setup
+**Options:**
+- `--config PATH`: Path to your config YAML (default: `package_config.yaml`).
+- `--dist PATH`: Directory to store outputs (default: `dist/`).
+- `--cache STR`: BuildKit cache options (e.g., `type=local,dest=.buildkit-cache`).
+- `--push`: Push OCI images to the registry.
+- `-j, --concurrency INT`: Number of parallel builds (default: 1).
 
-Clone this repository and run:
+---
 
+## 🏗 How it Works (Standardized Context)
+
+The tool uses a "Staging Area" strategy to handle absolute paths and complex dependencies:
+
+1. **Stage:** A temporary directory is created for each build task.
+2. **Map:** Source code, requirements, and layers are copied/symlinked into standardized locations (`src/`, `layer_<name>/`).
+3. **Compile:** A multi-stage Dockerfile is generated to reference these fixed paths.
+4. **Execute:** BuildKit runs the build using this isolated staging directory as the context.
+
+This ensures that **only the necessary files** are sent to Docker, making builds fast and independent of your local file structure.
+
+---
+
+## 🔒 Security & Determinism
+
+All ZIP files are generated with a fixed timestamp (`1980-01-01`) and sorted file entries. This ensures that if your code doesn't change, the SHA-256 hash of your ZIP file remains identical, preventing unnecessary AWS Lambda deployments.
+
+---
+
+## 🛠 Development
+
+### Setup
 ```bash
 git clone https://github.com/calvernaz/lambda-packer.git
 cd lambda-packer
-pip install -e .
-```
-
-For development:
-
-```bash
-pip install -e .[dev]
+uv sync --extra dev
 ```
 
 ### Running Tests
-
 ```bash
-pytest tests/
+PYTHONPATH=src uv run pytest tests/
 ```
-
----
-
-### Release
-
-Bump patch version:
-
-```bash
-bumpversion patch
-```
-
-Push tags:
-
-```
-git push origin main --tags
-```
-
 
 ## License
 
 This project is licensed under the MIT License.
-
----
-
-## Contact
-
-For any questions or feedback, feel free to open an issue on GitHub.

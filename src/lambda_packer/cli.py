@@ -14,6 +14,7 @@ from .builders.buildkit import BuildKitBuilder
 from .builders.dockerfile_gen import DockerfileGenerator
 from .config import ArtifactType, PackageConfig
 from .dist_layout import ManifestGenerator
+from .exporters.oci import OCIExporter
 from .exporters.zip import ZipExporter
 from .planner import Planner
 
@@ -34,6 +35,7 @@ def process_target_platform(
     df_gen,
     builder,
     zip_exporter,
+    oci_exporter,
     manifest,
 ):
     """
@@ -113,20 +115,21 @@ def process_target_platform(
 
         elif target.artifact_format == ArtifactType.IMAGE:
             # For Image targets, we build and optionally push to a registry.
-            tag = (
-                target.image_tag.format(arch=arch, name=target.name)
-                if target.image_tag
-                else f"lambda-packer/{target.name}:{arch}"
+            tag = oci_exporter.resolve_tag(
+                name=target.name,
+                arch=arch,
+                custom_tag=target.image_tag,
             )
+            
+            export_args = oci_exporter.get_export_args(tags=[tag], push=push)
+            
             builder.build(
                 dockerfile_content=df_content,
                 context_path=temp_context,
                 platforms=[platform],
-                output_type="image",
-                tags=[tag],
-                push=push,
                 cache_to=cache,
                 cache_from=cache,
+                **export_args
             )
             manifest.add_artifact(target.name, target.type, tag, {"platform": platform})
 
@@ -158,6 +161,7 @@ def build(config: Path, dist: Path, cache: Optional[str], push: bool, concurrenc
     df_gen = DockerfileGenerator()
     builder = BuildKitBuilder()
     zip_exporter = ZipExporter()
+    oci_exporter = OCIExporter()
     manifest = ManifestGenerator(dist)
 
     dist.mkdir(parents=True, exist_ok=True)
@@ -185,6 +189,7 @@ def build(config: Path, dist: Path, cache: Optional[str], push: bool, concurrenc
                 df_gen,
                 builder,
                 zip_exporter,
+                oci_exporter,
                 manifest,
             ): (target, platform)
             for target, platform in tasks
