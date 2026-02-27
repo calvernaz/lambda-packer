@@ -18,7 +18,8 @@ classifiers = [
 dependencies = [
     "Click",
     "PyYAML",
-    "docker>=4.4.0"
+    "docker>=4.4.0",
+    "pydantic>=2.12.5",
 ]
 
 [project.optional-dependencies]
