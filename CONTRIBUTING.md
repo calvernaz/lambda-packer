@@ -44,6 +44,26 @@ Thank you for considering contributing to this project! Here are a few guideline
 * Ensure that your code is formatted using **black** or another formatter where appropriate.
 * Make sure to write clear and concise comments when necessary.
 
+### Releases ###
+
+Patch releases are versioned from `pyproject.toml` and published by GitHub Actions when a matching Git tag is pushed.
+
+To prepare the next patch release:
+
+```bash
+uv run bump2version patch
+git push origin HEAD
+git tag v0.1.60
+git push origin v0.1.60
+```
+
+Notes:
+
+* `uv run bump2version patch` updates `pyproject.toml` and creates the version bump commit.
+* The publish workflow is triggered by tags matching `v*`.
+* The tag should match the package version in `pyproject.toml`.
+* CI runs on pushes and pull requests to validate tests and package builds before release.
+
 ### Bug Reports and Feature Requests ###
 
 If you find a bug or have a feature request, please open an issue in the Issues section of the repository.
@@ -54,4 +74,3 @@ For feature requests, describe the feature, its purpose, and how you would imple
 ### License ###
 
 By contributing to this project, you agree that your contributions will be licensed under the MIT License.
-

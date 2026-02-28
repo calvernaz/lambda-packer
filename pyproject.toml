@@ -3,17 +3,20 @@ requires = ["setuptools>=64", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "lambda_packer"
-version='0.1.58'
+name = "lambda-packer"
+version='0.1.59'
 description = "A tool to package Python AWS Lambda functions with zips, Docker containers, and layers."
 readme = "README.md"
 requires-python = ">=3.10"
-license = {text = "MIT"}
+authors = [
+    { name = "calvernaz" },
+]
+license = "MIT"
 classifiers = [
     "Programming Language :: Python :: 3",
-    "License :: OSI Approved :: MIT License",
     "Operating System :: OS Independent"
 ]
+urls = { Homepage = "https://github.com/calvernaz/lambda-packer", Repository = "https://github.com/calvernaz/lambda-packer", Issues = "https://github.com/calvernaz/lambda-packer/issues" }
 
 dependencies = [
     "Click",
