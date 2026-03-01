@@ -1,4 +1,5 @@
 from lambda_packer.builders.dockerfile import DockerfileGenerator
+import pytest
 
 def test_dockerfile_gen_zip_no_layers():
     generator = DockerfileGenerator()
@@ -29,4 +30,16 @@ def test_dockerfile_gen_image_with_layers():
     assert "COPY layer_common_requirements.txt" in df
     assert "FROM public.ecr.aws/lambda/python:3.12" in df
     assert 'CMD [ "app.handler" ]' in df
+    assert "ENTRYPOINT" not in df
     assert "COPY --from=layer-common /asset/python/ ." in df
+    assert "COPY --from=layer-common /asset/common/ ./common/" in df
+
+
+def test_dockerfile_gen_image_requires_handler():
+    generator = DockerfileGenerator()
+
+    with pytest.raises(ValueError, match="handler is required"):
+        generator.generate(
+            runtime="python3.12",
+            is_image=True,
+        )

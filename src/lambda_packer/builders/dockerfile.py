@@ -15,13 +15,13 @@ DOCKERFILE_TEMPLATE = """
 # syntax=docker/dockerfile:1.4
 {% for layer_name in layers %}
 FROM python:{{ runtime_version }}-slim AS layer-{{ layer_name }}
-WORKDIR /asset/python
+WORKDIR /asset
 {% if layer_requirements[layer_name] %}
 COPY layer_{{ layer_name }}_requirements.txt /tmp/requirements.txt
 RUN --mount=type=cache,target=/root/.cache/pip \\
-    pip install -r /tmp/requirements.txt -t .
+    pip install -r /tmp/requirements.txt -t /asset/python
 {% endif %}
-COPY layer_{{ layer_name }}/ .
+COPY layer_{{ layer_name }}/ /asset/{{ layer_name }}/
 {% endfor %}
 
 FROM python:{{ runtime_version }}-slim AS builder
@@ -33,10 +33,12 @@ RUN --mount=type=cache,target=/root/.cache/pip \\
 {% endif %}
 COPY src/ .
 
-# Merge layers: We copy the contents of /asset/python (site-packages + code)
-# directly into the lambda root so they are importable without PYTHONPATH tweaks.
+# Merge layer dependencies into the lambda root, but keep layer source code
+# namespaced under its layer directory so imports like `common.http` still work
+# and do not shadow stdlib modules such as `http`.
 {% for layer_name in layers %}
 COPY --from=layer-{{ layer_name }} /asset/python/ .
+COPY --from=layer-{{ layer_name }} /asset/{{ layer_name }}/ ./{{ layer_name }}/
 {% endfor %}
 
 # Final stage
@@ -45,11 +47,8 @@ COPY --from=layer-{{ layer_name }} /asset/python/ .
 FROM public.ecr.aws/lambda/python:{{ runtime_version }}
 WORKDIR ${LAMBDA_TASK_ROOT}
 COPY --from=builder /asset .
-{% if handler %}
-# Standard AWS Lambda entrypoint requires the handler as the first CMD argument.
-ENTRYPOINT [ "/lambda-entrypoint.sh" ]
+# The AWS base image already provides the correct Lambda entrypoint.
 CMD [ "{{ handler }}" ]
-{% endif %}
 {% else %}
 # For ZIP exports, we use scratch to produce the smallest possible filesystem export.
 FROM scratch
@@ -84,6 +83,9 @@ class DockerfileGenerator:
             is_image: Whether to produce a runnable OCI image.
             handler: The Lambda handler name (required if is_image is True).
         """
+        if is_image and not handler:
+            raise ValueError("handler is required when building an image Lambda")
+
         return self.template.render(
             runtime_version=runtime.replace("python", ""),
             requirements=requirements,
