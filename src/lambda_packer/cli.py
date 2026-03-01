@@ -25,6 +25,18 @@ def cli():
     pass
 
 
+def resolve_requirements_path(base_path: Path, configured_path: Optional[Path]) -> Optional[Path]:
+    """Prefer configured requirements, otherwise fall back to a local requirements.txt."""
+    if configured_path:
+        return configured_path
+
+    default_requirements = base_path / "requirements.txt"
+    if default_requirements.exists():
+        return default_requirements
+
+    return None
+
+
 def process_target_platform(
     target,
     platform,
@@ -64,8 +76,9 @@ def process_target_platform(
 
         # Map requirements to 'requirements.txt'
         has_requirements = False
-        if target.requirements:
-            shutil.copy2(target.requirements, temp_context / "requirements.txt")
+        lambda_requirements = resolve_requirements_path(target.path, target.requirements)
+        if lambda_requirements:
+            shutil.copy2(lambda_requirements, temp_context / "requirements.txt")
             has_requirements = True
 
         # Map Layers to 'layer_<name>/'
@@ -75,9 +88,12 @@ def process_target_platform(
             layer_dest = temp_context / f"layer_{layer_name}"
             shutil.copytree(layer_cfg.path, layer_dest, dirs_exist_ok=True)
 
-            if layer_cfg.requirements:
+            layer_requirements = resolve_requirements_path(
+                layer_cfg.path, layer_cfg.requirements
+            )
+            if layer_requirements:
                 shutil.copy2(
-                    layer_cfg.requirements,
+                    layer_requirements,
                     temp_context / f"layer_{layer_name}_requirements.txt",
                 )
                 layer_requirements_map[layer_name] = True
