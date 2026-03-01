@@ -55,7 +55,10 @@ class BuildKitBuilder:
                 cmd += ["--output", f"type=local,dest={output_dest}"]
             elif output_type == "image":
                 if push:
-                    # Push directly to the registry.
+                    # Lambda rejects some buildx-pushed images when provenance/SBOM
+                    # attestations result in an OCI index instead of a plain image manifest.
+                    # Disable both for pushed runtime images.
+                    cmd += ["--provenance=false", "--sbom=false"]
                     cmd += ["--output", "type=image"]
                     cmd += ["--push"]
                 else:
